@@ -1,0 +1,24 @@
+{
+    "configurations": 
+    [
+        {
+            "name": "f107_c_cpp_properties",
+            "compilerPath": "/usr/bin/arm-none-eabi-gcc",
+            "includePath": 
+            [
+                "${workspaceRoot}/inc/",
+                "${workspaceRoot}/lib/",
+                "${workspaceRoot}/freeRTOS/inc/",
+                "${workspaceRoot}/freeRTOS/inc/"                
+            ],
+            "defines":
+            [
+                "STM32F10xx"
+            ],
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        }
+    ],
+    "version": 4
+}
