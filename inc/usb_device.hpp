@@ -191,11 +191,11 @@ private:
     static constexpr uint16_t USB_DESC_TYPE_EP_DESCRIPTOR = 0x0500;
     static constexpr uint16_t USB_DESC_TYPE_DEVICE_QUALIFIER = 0x0700;
 
-    static constexpr uint8_t USBD_IDX_LANGID_STR = 0x03;
-    static constexpr uint8_t USBD_strManufacturer = 0x0301;
-    static constexpr uint8_t USBD_strProduct = 0x0302;
-    static constexpr uint8_t USBD_IDX_SERIAL_STR = 0x0303;
-    static constexpr uint8_t USBD_IDX_CONFIG_STR = 0x03;
+    static constexpr uint16_t USBD_IDX_LANGID_STR = 0x03;
+    static constexpr uint16_t USBD_strManufacturer = 0x0301;
+    static constexpr uint16_t USBD_strProduct = 0x0302;
+    static constexpr uint16_t USBD_IDX_SERIAL_STR = 0x0303;
+    static constexpr uint16_t USBD_IDX_CONFIG_STR = 0x0304;
 };
 USB_DEVICE* USB_DEVICE::pThis=nullptr;
 
@@ -269,9 +269,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 			
 			if(epint & USB_OTG_DIEPINT_XFRC) // если Transfer Completed interrupt. Показывает, что транзакция завершена как на AHB, так и на USB.
 			{
-				//USB_DEVICE::pThis->resetFlag=10001;
-                /*!< (TODO: реализовать очередь в которую сначала закидываем побайтово буффер с дескриптором) >*/
-                // а потом вычитываем из нее побайтово очищая счетчик.
+                /*!< (TODO: реализовать очередь в которую сначала закидываем побайтово буффер с дескриптором) >*/                
 				if(QueWord::pThis->is_not_empty()/*usb.Get_TX_Q_cnt(0)*/)	//если счетчик не нулевой, 			
 					{
 						USB_OTG_DFIFO(0) = QueWord::pThis->pop(); //!< записываем в FIFO значения из очереди //Отправить ещё кусочек
@@ -282,8 +280,8 @@ extern "C" void OTG_FS_IRQHandler(void)
 				else
 				{
 					//EndPoint ENAble. Приложение устанавливает этот бит, чтобы запустить передачу на конечной точке 0.
-				USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
-				//разрешит передачу из FIFO
+					USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
+					//разрешит передачу из FIFO
 				}
 			}
 			if(epint & USB_OTG_DIEPINT_TOC) //TimeOut Condition. Показывает, что ядро определило событие таймаута на USB для последнего токена IN на этой конечной точке.
@@ -373,10 +371,10 @@ extern "C" void OTG_FS_IRQHandler(void)
 				//uint32_t count = ((USB_OTG_FS->GRXSTSP & USB_OTG_GRXSTSP_BCNT)>>4)&0xFF; //количество принятых байт
 				//USB_DEVICE::pThis->resetFlag=count;
 				//if (count) // если количество принятых байт не равно нулю => читаем Rx
-				{
-					USB_DEVICE::pThis->resetFlag++;		
+				{							
 					USB_DEVICE::pThis->ReadSetupFIFO();	
-					uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его.
+					//uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его.
+					//USB_DEVICE::pThis->resetFlag=setupStatus;
 				}
 				//3. Приложение должно прочитать 2 слова пакета SETUP для RxFIFO.
 				//4. Приложение должно прочитать из RxFIFO слово Setup stage done и отбросить его.
@@ -387,10 +385,11 @@ extern "C" void OTG_FS_IRQHandler(void)
 			case 0x03:  /* OUT completed */
             case 0x04:  /* SETUP completed */
 			{
+				USB_DEVICE::pThis->resetFlag++;
 				//EPENA Приложение устанавливает этот бит, чтобы запустить передачу на конечной точке 0.
 			//CNAK (бит 26): Clear NAK. Запись в этот бит очистит бит NAK для конечной точки. Ядро установить этот бит после того, как на конечной точке принят пакет SETUP
                 USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
-				USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA);
+				//USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA);
 				// после этого необходимо заполнить Tx дескриптором устройства.
 			}			
 		}
