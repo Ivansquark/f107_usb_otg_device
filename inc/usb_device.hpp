@@ -11,6 +11,57 @@
 //адреса разных FIFO
 #define USB_OTG_DFIFO(i) *(__IO uint32_t *)((uint32_t)USB_OTG_FS_PERIPH_BASE + USB_OTG_FIFO_BASE + (i) * USB_OTG_FIFO_SIZE) 
 
+/*! <Simple Static Queue With Const Max Size Must Be Checked On Empty Condition>*/
+struct QueWord
+{
+	QueWord(){pThis=this;}
+    void push(uint32_t x)
+    {
+        if(start==nullptr){start = &arr[count]; arr[count]=x;count++;}
+        else
+        {
+            if(count<size)
+            {
+                for(uint32_t i=count;i>0;i--)
+                {arr[i]=arr[i-1];}
+                arr[0]=x;
+                count++;
+            }
+        }
+    }
+    uint32_t pop()
+    {
+        uint32_t temp=0;
+        if(count){count--;} //!< super kostyl'
+        if(count)
+        {
+            temp=arr[count];
+            arr[count]=0;
+        }
+        else
+        {
+                if (start!=nullptr)
+                {
+                    temp=arr[0];arr[0]=0;
+                    start=nullptr;
+                }
+                else{/*cout<<"opa";*/}
+        }
+        return temp;
+    }
+    bool is_not_empty() //!< this condition must be checked before pop
+    {
+        //if(start==nullptr)return true;
+        //        else return false;
+        return (start) ? true : false;
+    }    
+    uint32_t* start{nullptr};
+    uint32_t count{0};
+    static constexpr uint32_t size=10; //size of queue
+    uint32_t arr[size]{0};
+	static QueWord* pThis;
+};
+QueWord* QueWord::pThis = nullptr;
 
 
 class USB_DEVICE
@@ -171,7 +222,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 		USB_OTG_DEVICE->DOEPMSK |= USB_OTG_DOEPMSK_XFRCM; //1 TransfeR Completed interrupt Mask. разрешаем на чтение
 		// разрешаем прерывания таймаута и завершения транзакции IN
 		USB_OTG_DEVICE->DIEPMSK |= USB_OTG_DIEPMSK_TOM; //TimeOut condition Mask (не изохронные конечные точки). Если этот бит сброшен в 0, то прерывание таймаута маскировано (запрещено).
-		USB_OTG_DEVICE->DIEPMSK |= USB_OTG_DIEPMSK_XFRCM; // TransfeR Completed interrupt Mask. разрешаем на запись
+		USB_OTG_DEVICE->DIEPMSK |= USB_OTG_DIEPMSK_XFRCM; // TransfeR Completed interrupt Mask. (прерывание завершения транзакции) разрешаем на запись
 		
 		//FIFO, их ещё в обработчике RESET очищать надо
 		//Сбросить все TXFIFO
@@ -180,11 +231,16 @@ extern "C" void OTG_FS_IRQHandler(void)
 		//Сбросить RXFIFO
 		USB_OTG_FS->GRSTCTL = USB_OTG_GRSTCTL_RXFFLSH;
 		while (USB_OTG_FS->GRSTCTL & USB_OTG_GRSTCTL_RXFFLSH); // сбрасываем Tx и Rx FIFO
+		/*!<обнуляем структуру>*/
 		USB_DEVICE::pThis->uSetReq.bmRequestType=0;USB_DEVICE::pThis->uSetReq.bRequest=0;
 		USB_DEVICE::pThis->uSetReq.wValue=0;USB_DEVICE::pThis->uSetReq.wIndex=0;
 		USB_DEVICE::pThis->uSetReq.wLength=0;	
 		USB_OTG_FS->GINTMSK |= USB_OTG_GINTMSK_ENUMDNEM; // unmask enumeration done interrupt
 		USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_USBRST;	
+		
+		/*!<Обнууляем адрес>*/
+		uint8_t value=0x7F; //7 bits of address
+		USB_OTG_DEVICE->DCFG &=~ value<<4; //запись адреса.
 		
 	}
      /*! <start of Enumeration done> */
@@ -195,16 +251,13 @@ extern "C" void OTG_FS_IRQHandler(void)
 		//uint32_t enSize = OTG->OTG_FS_DSTS;//прочитайте регистр OTG_FS_DSTS, чтобы определить скорость энумерации. (FS постоянный)
 		USB_OTG_IN(0)->DIEPCTL &=~ USB_OTG_DIEPCTL_MPSIZ; //0:0 - 64 байта, Приложение должно запрограммировать это поле максимальным размером пакета для текущей логической конечной точки. 
 		//USB_OTG_GLOBAL->GUSBCFG |= USB_OTG_GUSBCFG_TRDT(5);   USB TuRnaround Time. Эти биты позволяют установить время выполнения работы в тактах PHY. 
-		//!< разрешаем генерацию прерывания при приеме в FIFO, конечных точек IN, OUT
-		USB_OTG_FS->GINTMSK |= USB_OTG_GINTMSK_RXFLVLM | USB_OTG_GINTMSK_IEPINT | USB_OTG_GINTMSK_OEPINT;
-		
-		USB_OTG_IN(0)->DIEPCTL &=~ USB_OTG_DIEPCTL_MPSIZ;
+		//!< разрешаем генерацию прерывания при приеме в FIFO, конечных точек IN, OUT и непустого буфера Rx
+		USB_OTG_FS->GINTMSK |= USB_OTG_GINTMSK_RXFLVLM | USB_OTG_GINTMSK_IEPINT | USB_OTG_GINTMSK_OEPINT;		
 		//На этом этапе устройство готово принять пакеты SOF и оно сконфигурировано для выполнения управляющих транзакций на control endpoint 0.
 	}
     /*! < прерывание конечной точки IN  (на передачу данных)> */
     if(USB_OTG_FS->GINTSTS & USB_OTG_GINTMSK_IEPINT) 
-	{
-		
+	{		
         uint32_t epnums  = USB_OTG_DEVICE->DAINT; // номер конечной точки вызвавшей прерывание 
         uint32_t epint;
         epnums &= USB_OTG_DEVICE->DAINTMSK;   	  // определяем этот номер	с учетом разрешенных точек
@@ -219,9 +272,9 @@ extern "C" void OTG_FS_IRQHandler(void)
 				//USB_DEVICE::pThis->resetFlag=10001;
                 /*!< (TODO: реализовать очередь в которую сначала закидываем побайтово буффер с дескриптором) >*/
                 // а потом вычитываем из нее побайтово очищая счетчик.
-				if(USB_OTG_IN(0)->DIEPTSIZ & USB_OTG_DIEPTSIZ_XFRSIZ/*usb.Get_TX_Q_cnt(0)*/)	//если счетчик не нулевой, 			
+				if(QueWord::pThis->is_not_empty()/*usb.Get_TX_Q_cnt(0)*/)	//если счетчик не нулевой, 			
 					{
-						
+						USB_OTG_DFIFO(0) = QueWord::pThis->pop(); //!< записываем в FIFO значения из очереди //Отправить ещё кусочек
 						//usb.EP_TX_Q(0); //  записываем в Ep Tx, пока не исчерпается счетчик, после этого в else
 						//writeToFIFO;
 						//USB_DEVICE::pThis->resetFlag++;
@@ -279,7 +332,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 		    epint &= USB_OTG_DEVICE->DOEPMSK;	 // считываем разрешенные биты 
 		    // Transfer Completed interrupt. Это поле показывает, что для этой конечной точки завершена запрограммированная транзакция
 		    if(epint & USB_OTG_DOEPINT_XFRC)
-		    {
+		    {// в момент SETUP приходят данные 
 		    }
 		    //SETUP phase done. На этом прерывании приложение может декодировать принятый пакет данных SETUP.
 		    if(epint & USB_OTG_DOEPINT_STUP) // Показывает, что фаза SETUP завершена (пришел пакет)
@@ -322,9 +375,12 @@ extern "C" void OTG_FS_IRQHandler(void)
 				//if (count) // если количество принятых байт не равно нулю => читаем Rx
 				{
 					USB_DEVICE::pThis->resetFlag++;		
-					USB_DEVICE::pThis->ReadSetupFIFO();				
+					USB_DEVICE::pThis->ReadSetupFIFO();	
+					uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его.
 				}
-				
+				//3. Приложение должно прочитать 2 слова пакета SETUP для RxFIFO.
+				//4. Приложение должно прочитать из RxFIFO слово Setup stage done и отбросить его.
+				//после токена SETUP идет токен DATA, который необходимо считывать в конечной точке EP0 OUT
 				//	//Flush_TX(ep);
                 
 			} break;
