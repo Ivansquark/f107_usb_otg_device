@@ -75,7 +75,8 @@ void USB_DEVICE::Enumerate_Setup(void)
       switch(uSetReq.wValue)
       {
         case USB_DESC_TYPE_DEVICE:   //Запрос дескриптора устройства
-        counter++;
+        USART_debug::usart2_sendSTR("DEVICE DESCRIPTER\n");
+        //counter++;
           len = sizeof(Device_Descriptor);
           pbuf = (uint8_t *)Device_Descriptor; // выставляем в буфер адрес массива с дескриптором устройства.
           break;
@@ -139,6 +140,8 @@ void USB_DEVICE::Enumerate_Setup(void)
 void USB_DEVICE::SetAdr(uint16_t value)
 {  
     //counter++;
+    USART_debug::usart2_sendSTR("ADDRESS\n");
+    USART_debug::usart2_send(value);
     ADDRESS=value;
     USB_OTG_DEVICE->DCFG |= value<<4; //запись адреса.    
     USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
@@ -150,10 +153,12 @@ void USB_DEVICE::Set_CurrentConfiguration(uint16_t value)
 }
 void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
 {
+  
   /*!<записать количество пакетов и размер пакета>*/
 	USB_OTG_IN(EPnum)->DIEPTSIZ |= 1<<19; USB_OTG_IN(EPnum)->DIEPTSIZ &=~ 1<<20;//(0:1) 1-packet 
   /*!<количество передаваемых пакетов (по прерыванию USB_OTG_DIEPINT_XFRC передается один пакет)>*/
-  USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen; 
+  USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
+  
   USB_OTG_IN(EPnum)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); //выставляем перед записью
     if(minLen) WriteFIFO(EPnum, buf, minLen);
     //switch(EPnum)
@@ -172,11 +177,14 @@ uint16_t USB_DEVICE::MIN(uint16_t len, uint16_t wLength)
 }
 void USB_DEVICE::WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len)
 {
+    USART_debug::usart2_sendSTR("WRITE in EP0\n");
+    
     //resetFlag = 1000;
     uint32_t words2write = (len+3)>>2; // делим на два
     for (uint32_t index = 0; index < words2write; index++, src += 4)
     {
         /*!<закидываем в fifo 32-битные слова>*/
+        USART_debug::usart2_send(src[7]); 
         USB_OTG_DFIFO(fifo_num) = *((__packed uint32_t *)src);
         //resetFlag++; 
     }

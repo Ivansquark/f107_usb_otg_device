@@ -201,11 +201,12 @@ USB_DEVICE* USB_DEVICE::pThis=nullptr;
 
 //!< здесь осуществляется все взаимодействие с USB
 extern "C" void OTG_FS_IRQHandler(void)
-{	
+{		
 	//Инициализация конечной точки 0 при USB reset:
     if(USB_OTG_FS->GINTSTS &  USB_OTG_GINTSTS_USBRST)
-	{		
-		//USB_DEVICE::pThis->resetFlag++;	
+	{
+		//USART_debug::usart2_send(USB_DEVICE::pThis->resetFlag++);		
+		USART_debug::usart2_sendSTR("reset\n");	
 		USB_OTG_FS->GINTSTS |= USB_OTG_GINTSTS_USBRST; // сбрасываем бит
 		//1. Установка бита NAK для всех конечных точек OUT: SNAK = 1 в регистре OTG_FS_DOEPCTLx (для всех конечных точек OUT, x это номер конечной точки).
 		//Используя этот бит, приложение может управлять передачей отрицательных подтверждений NAK конечной точки.
@@ -246,6 +247,7 @@ extern "C" void OTG_FS_IRQHandler(void)
      /*! <start of Enumeration done> */
 	if(USB_OTG_FS->GINTSTS & USB_OTG_GINTSTS_ENUMDNE)
 	{
+		USART_debug::usart2_sendSTR("ENUMDNE\n");
 		//Инициализация конечной точки по завершению энумерации:
 		USB_OTG_FS->GINTSTS |= USB_OTG_GINTSTS_ENUMDNE; // бит выставляется при окончании энумерации, необходимо его очистить
 		//uint32_t enSize = OTG->OTG_FS_DSTS;//прочитайте регистр OTG_FS_DSTS, чтобы определить скорость энумерации. (FS постоянный)
@@ -258,6 +260,7 @@ extern "C" void OTG_FS_IRQHandler(void)
     /*! < прерывание конечной точки IN  (на передачу данных)> */
     if(USB_OTG_FS->GINTSTS & USB_OTG_GINTMSK_IEPINT) 
 	{		
+		USART_debug::usart2_sendSTR("IEPINT\n");
         uint32_t epnums  = USB_OTG_DEVICE->DAINT; // номер конечной точки вызвавшей прерывание 
         uint32_t epint;
         epnums &= USB_OTG_DEVICE->DAINTMSK;   	  // определяем этот номер	с учетом разрешенных точек
@@ -320,7 +323,7 @@ extern "C" void OTG_FS_IRQHandler(void)
     //------------------------------------------------------------------------------------------------------------------------------------------------------------
     if(USB_OTG_FS->GINTSTS & USB_OTG_GINTMSK_OEPINT) // прерывание конечной точки OUT (на прием данных) (срабатывает в первый раз при приеме Setup пакета)
     {
-		
+		USART_debug::usart2_sendSTR("OEPINT\n");
 		uint32_t epnums  = USB_OTG_DEVICE->DAINT;
 		uint32_t epint;				
 		epnums &= USB_OTG_DEVICE->DAINTMSK;			// определяем конечную точку	
@@ -358,6 +361,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 	//OTG_FS_GINTSTS_RXFLVL /* Receive FIFO non-empty */   буффера RX не пуст
 	if(USB_OTG_FS->GINTSTS & USB_OTG_GINTSTS_RXFLVL)
 	{		
+		USART_debug::usart2_sendSTR("RXFLVL\n");
 		//USB_DEVICE::pThis->resetFlag++;
 		//uint8_t status = (USB_OTG_FS->GRXSTSR)>>17&0xF; // PacKeT STatuS приложение должно прочитать регистр выборки статуса приема (OTG_FS_GRXSTSP).
 		//чтение регистра GRXSTSP извлечет данные из Rx_FIFO (в FIFO останется только DATA пакет)
@@ -374,6 +378,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 				{							
 					USB_DEVICE::pThis->ReadSetupFIFO();	
 					//uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его.
+					USART_debug::usart2_sendSTR("readFIFO\n");
 					//USB_DEVICE::pThis->resetFlag=setupStatus;
 				}
 				//3. Приложение должно прочитать 2 слова пакета SETUP для RxFIFO.
@@ -385,16 +390,16 @@ extern "C" void OTG_FS_IRQHandler(void)
 			case 0x03:  /* OUT completed */
             case 0x04:  /* SETUP completed */
 			{
-				USB_DEVICE::pThis->resetFlag++;
+				
 				//EPENA Приложение устанавливает этот бит, чтобы запустить передачу на конечной точке 0.
-			//CNAK (бит 26): Clear NAK. Запись в этот бит очистит бит NAK для конечной точки. Ядро установить этот бит после того, как на конечной точке принят пакет SETUP
+				//CNAK (бит 26): Clear NAK. Запись в этот бит очистит бит NAK для конечной точки. Ядро установить этот бит после того, как на конечной точке принят пакет SETUP
                 USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
 				//USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA);
 				// после этого необходимо заполнить Tx дескриптором устройства.
 			}			
 		}
 		USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_RXFLVLM; //разрешаем генерацию прерывания наличия принятых данных в FIFO приема.
-		USB_OTG_FS-> GINTSTS = 0xFFFFFFFF;
+		//USB_OTG_FS-> GINTSTS = 0xFFFFFFFF;
 	}
 }
 
