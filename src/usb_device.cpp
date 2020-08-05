@@ -81,15 +81,18 @@ void USB_DEVICE::Enumerate_Setup(void)
           pbuf = (uint8_t *)Device_Descriptor; // выставляем в буфер адрес массива с дескриптором устройства.
           break;
         case USB_DESC_TYPE_CONFIGURATION:   //Запрос дескриптора конфигурации
+        USART_debug::usart2_sendSTR("CONFIGURATION DESCRIPTER\n");
           len = sizeof(Config_Descriptor);
           pbuf = (uint8_t *)Config_Descriptor;
           break;   
 		  //Device Qualifier Descriptor (уточняющий дескриптор устройства) — содержит дополнительную информацию об устройстве, для его работы на другой скорости.
         case USB_DESC_TYPE_INTERFACE:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
+        USART_debug::usart2_sendSTR("INTERFACE DESCRIPTER\n");
           len = sizeof(Interface_Descriptor);
           pbuf = (uint8_t *)Interface_Descriptor;             
           break;    
         case USB_DESC_TYPE_EP_DESCRIPTOR:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
+          USART_debug::usart2_sendSTR("EP DESCRIPTER\n");
           len = sizeof(EP1_In_Descriptor);
           pbuf = (uint8_t *)EP1_In_Descriptor;             
           break;
@@ -139,13 +142,12 @@ void USB_DEVICE::Enumerate_Setup(void)
 
 void USB_DEVICE::SetAdr(uint16_t value)
 {  
-    //counter++;
-    USART_debug::usart2_sendSTR("ADDRESS\n");
-    USART_debug::usart2_send(value);
     ADDRESS=value;
     USB_OTG_DEVICE->DCFG |= value<<4; //запись адреса.    
-    USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
+    USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT;
+    //USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
     USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); 
+    USART_debug::usart2_sendSTR("ADDRESS\n");
 }
 void USB_DEVICE::Set_CurrentConfiguration(uint16_t value)
 {
@@ -155,19 +157,13 @@ void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
 {
   
   /*!<записать количество пакетов и размер пакета>*/
-	USB_OTG_IN(EPnum)->DIEPTSIZ |= 1<<19; USB_OTG_IN(EPnum)->DIEPTSIZ &=~ 1<<20;//(0:1) 1-packet 
+	USB_OTG_IN(EPnum)->DIEPTSIZ |= (1<<19); 
+  USB_OTG_IN(EPnum)->DIEPTSIZ &=~ (1<<20);//(0:1) 1-packet 
   /*!<количество передаваемых пакетов (по прерыванию USB_OTG_DIEPINT_XFRC передается один пакет)>*/
   USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
-  
+  //USB_OTG_IN(0)->DIEPCTL=(1<<31)|(1<<26); // EPENA; CNAK
   USB_OTG_IN(EPnum)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); //выставляем перед записью
-    if(minLen) WriteFIFO(EPnum, buf, minLen);
-    //switch(EPnum)
-    //{
-    //    case 00: WriteFIFO(0, buf, minLen);break;
-    //    case 01: WriteFIFO(1, buf, minLen);break;
-    //    case 02: WriteFIFO(2, buf, minLen);break;
-    //    case 03: WriteFIFO(3, buf, minLen);break;
-    //}
+  if(minLen) WriteFIFO(EPnum, buf, minLen);    
 }
 uint16_t USB_DEVICE::MIN(uint16_t len, uint16_t wLength)
 {
@@ -177,17 +173,15 @@ uint16_t USB_DEVICE::MIN(uint16_t len, uint16_t wLength)
 }
 void USB_DEVICE::WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len)
 {
-    USART_debug::usart2_sendSTR("WRITE in EP0\n");
-    
-    //resetFlag = 1000;
-    uint32_t words2write = (len+3)>>2; // делим на два
+    uint32_t words2write = (len+3)>>2; // делим на четыре
     for (uint32_t index = 0; index < words2write; index++, src += 4)
     {
         /*!<закидываем в fifo 32-битные слова>*/
-        USART_debug::usart2_send(src[7]); 
+        //USART_debug::usart2_send(src[7]); 
         USB_OTG_DFIFO(fifo_num) = *((__packed uint32_t *)src);
         //resetFlag++; 
     }
+    USART_debug::usart2_sendSTR("WRITE in EP0\n");
 }
 
 void USB_DEVICE::ReadSetupFIFO(void)

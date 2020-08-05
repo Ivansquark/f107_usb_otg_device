@@ -7,6 +7,7 @@ void *__dso_handle = nullptr; // dummy "guard" that is used to identify dynamic 
 
 int main()
 {	
+	QueWord que;
     RCCini rcc;	//! 72 MHz
 	//LED13 led;
 	//__enable_irq();
@@ -22,6 +23,7 @@ int main()
 
 	uint32_t count=0;
 	USART_debug usart2(2);
+	__enable_irq();
 	while(1)
 	{		
 		//font16.intToChar(usb.resetFlag);

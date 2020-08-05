@@ -1,1 +1,1 @@
-[{"node":"TIM4.SR","expanded":true,"format":0}]
+[{"node":"TIM4.SR","expanded":true,"format":0},{"node":"USB_OTG_DEVICE","expanded":true,"format":0},{"node":"USB_OTG_DEVICE.FS_DIEPMSK","expanded":true,"format":0},{"node":"USB_OTG_DEVICE.DIEPTSIZ0","expanded":true,"format":0},{"node":"USB_OTG_DEVICE.DOEPINT0","expanded":true,"format":0},{"node":"USB_OTG_GLOBAL.FS_GINTSTS","expanded":true,"format":0}]
