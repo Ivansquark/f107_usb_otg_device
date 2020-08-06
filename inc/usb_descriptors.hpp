@@ -107,9 +107,9 @@ const uint8_t Device_Descriptor[18] =
         0x04, /* bDescriptorType: Interface */
         0x01, /* bInterfaceNumber: Number of Interface */
         0x00, /* bAlternateSetting: Alternate setting */
-        0x01, /* bNumEndpoints: One endpoints used */
+        0x02, /* bNumEndpoints: Two endpoints used */
         0x0A, /* bInterfaceClass: DATA Interface Class */
-        0x02, /* bInterfaceSubClass: Abstract Control Model */
+        0x00, /* bInterfaceSubClass: No class */
         0x00, /* bInterfaceProtocol: No special */
         0x00 /* iInterface: */
     };

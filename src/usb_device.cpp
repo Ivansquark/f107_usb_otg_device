@@ -72,9 +72,9 @@ void USB_DEVICE::Enumerate_Setup(void)
   uint8_t *pbuf; 
   switch(uSetReq.bRequest)
   {    
-    case STD_GET_DESCRIPTOR:
+    case STD_GET_DESCRIPTOR:        
       switch(uSetReq.wValue)
-      {
+      {        
         case USB_DESC_TYPE_DEVICE:   //Запрос дескриптора устройства
         USART_debug::usart2_sendSTR("DEVICE DESCRIPTER\n");
         //counter++;
@@ -86,34 +86,43 @@ void USB_DEVICE::Enumerate_Setup(void)
           len = sizeof(Config_Descriptor);
           pbuf = (uint8_t *)Config_Descriptor;
           break;   
-		  //Device Qualifier Descriptor (уточняющий дескриптор устройства) — содержит дополнительную информацию об устройстве, для его работы на другой скорости.
-        case USB_DESC_TYPE_INTERFACE:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
+		  
+        case USB_DESC_TYPE_INTERFACE1:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
         USART_debug::usart2_sendSTR("INTERFACE DESCRIPTER\n");
-          len = sizeof(Interface_Descriptor);
-          pbuf = (uint8_t *)Interface_Descriptor;             
+          len = sizeof(Interface_Descriptor1);
+          pbuf = (uint8_t *)Interface_Descriptor1;             
           break;    
-        case USB_DESC_TYPE_EP_DESCRIPTOR:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
-          USART_debug::usart2_sendSTR("EP DESCRIPTER\n");
+        case USB_DESC_TYPE_EP_DESCRIPTOR1:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
+          USART_debug::usart2_sendSTR("EP DESCRIPTER1_IN\n");
           len = sizeof(EP1_In_Descriptor);
           pbuf = (uint8_t *)EP1_In_Descriptor;             
           break;
+        case USB_DESC_TYPE_EP_DESCRIPTOR2:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
+          USART_debug::usart2_sendSTR("EP DESCRIPTER1_OUT\n");
+          len = sizeof(EP1_OUT_Descriptor);
+          pbuf = (uint8_t *)EP1_OUT_Descriptor;             
+          break;  
                
-        //case USBD_IDX_LANGID_STR: //Запрос строкового дескриптора
-        //  len = sizeof(StringLangID);
-        //  pbuf = (uint8_t *)StringLangID;                   
-        //  break;
-        //case USBD_IDX_MFC_STR: //Запрос строкового дескриптора
-        //  len = sizeof(StringVendor);
-        //  pbuf = (uint8_t *)StringVendor;                             
-        //  break;
-        //case USBD_IDX_PRODUCT_STR: //Запрос строкового дескриптора
-        //  len = sizeof(StringProduct);
-        //  pbuf = (uint8_t *)StringProduct;         
-        //  break;                     
-        //case USBD_IDX_SERIAL_STR: //Запрос строкового дескриптора
-        //  len = sizeof(StringSerial);
-        //  pbuf = (uint8_t *)StringSerial;                             
-        //  break;
+        case USBD_IDX_LANGID_STR: //Запрос строкового дескриптора
+        USART_debug::usart2_sendSTR("USBD_IDX_LANGID_STR\n");
+          len = sizeof(LANG_ID_Descriptor);
+          pbuf = (uint8_t *)LANG_ID_Descriptor;                   
+          break;
+        case USBD_strManufacturer: //Запрос строкового дескриптора
+        USART_debug::usart2_sendSTR("USBD_strManufacturer\n");
+          len = sizeof(Man_String);
+          pbuf = (uint8_t *)Man_String;                             
+          break;
+        case USBD_strProduct: //Запрос строкового дескриптора
+         USART_debug::usart2_sendSTR("USBD_strProduct\n");
+          len = sizeof(Prod_String);
+          pbuf = (uint8_t *)Prod_String;         
+          break;                     
+        case USBD_IDX_SERIAL_STR: //Запрос строкового дескриптора
+        USART_debug::usart2_sendSTR("USBD_IDX_SERIAL_STR\n");
+          len = sizeof(SN_String);
+          pbuf = (uint8_t *)SN_String;                             
+          break;
         //case USBD_IDX_CONFIG_STR:
         //  len = sizeof(StringConfig);
         //  pbuf = (uint8_t *)StringConfig;
@@ -144,7 +153,8 @@ void USB_DEVICE::Enumerate_Setup(void)
 void USB_DEVICE::SetAdr(uint16_t value)
 {  
     ADDRESS=value;
-    USB_OTG_DEVICE->DCFG |= value<<4; //запись адреса.    
+    uint32_t add = value<<4;
+    USB_OTG_DEVICE->DCFG |= add; //запись адреса.    
     USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT;
     //USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
     USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); 
@@ -156,7 +166,7 @@ void USB_DEVICE::Set_CurrentConfiguration(uint16_t value)
 }
 void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
 {
-  
+  USB_OTG_IN(EPnum)->DIEPTSIZ =0;
   /*!<записать количество пакетов и размер пакета>*/
 	USB_OTG_IN(EPnum)->DIEPTSIZ |= (1<<19); 
   USB_OTG_IN(EPnum)->DIEPTSIZ &=~ (1<<20);//(0:1) 1-packet 
@@ -174,15 +184,15 @@ uint16_t USB_DEVICE::MIN(uint16_t len, uint16_t wLength)
 }
 void USB_DEVICE::WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len)
 {
-    uint32_t words2write = (len+3)>>2; // делим на четыре
+    uint32_t words2write = (len+3)>>2; // делим на четыре    
     for (uint32_t index = 0; index < words2write; index++, src += 4)
     {
         /*!<закидываем в fifo 32-битные слова>*/
         //USART_debug::usart2_send(src[7]); 
-        USB_OTG_DFIFO(fifo_num) = *((__packed uint32_t *)src);
+        USB_OTG_DFIFO(fifo_num) = *((__packed uint32_t *)src);        
         //resetFlag++; 
     }
-    USART_debug::usart2_sendSTR("WRITE in EP0\n");
+    USART_debug::usart2_sendSTR("WRITE in EP0\n");    
 }
 
 void USB_DEVICE::ReadSetupFIFO(void)
