@@ -1,4 +1,5 @@
 #include "usb_device.hpp"
+#include "usb_descriptors.hpp"
 
 USB_DEVICE::USB_DEVICE()
 {pThis=this;fifo_init(); usb_init();}

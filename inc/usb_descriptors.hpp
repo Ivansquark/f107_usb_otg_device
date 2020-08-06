@@ -1,0 +1,202 @@
+#ifndef USB_DESCRIPTORS_H
+#define USB_DESCRIPTORS_H
+
+const uint8_t Device_Descriptor[18] =
+    {
+        /* Standard USB device descriptor for the CDC serial driver */
+        18, // size
+        1, // USBGenericDescriptor_DEVICE
+        0x00,0x02, // USBDeviceDescriptor_USB2_00
+        2, // CDCDeviceDescriptor_CLASS
+        0, // CDCDeviceDescriptor_SUBCLASS
+        0, // CDCDeviceDescriptor_PROTOCOL
+        64, // BOARD_USB_ENDPOINTS_MAXPACKETSIZE
+        0xEB,0x03, // CDCDSerialDriverDescriptors_VENDORID
+        0x24,0x61, // CDCDSerialDriverDescriptors_PRODUCTID
+        0x10,0x01, // CDCDSerialDriverDescriptors_RELEASE  bcdDevice (00 01)
+        1, // Index of manufacturer description //0
+        2, // Index of product description //0
+        3, // Index of serial number description //0
+        1 // One possible configuration
+    };
+    const uint8_t Config_Descriptor[9]
+    {
+        /*Configuration Descriptor*/
+        0x09, /* bLength: Configuration Descriptor size */
+        0x02, /* bDescriptorType: Configuration */
+        67,   /* wTotalLength:no of retuinturned bytes */
+        0x00,
+        0x02, /* bNumInterfaces: 2 interface */
+        0x01, /* bConfigurationValue: Configuration value */
+        0x00, /* iConfiguration: Index of string descriptor describing the configuration */
+        0x80, /* bmAttributes - Bus powered 00 [6] 0-bus powered 1-no bus power [5] 0-no wakeup 1- wakeup */
+        0x32 /* MaxPower 100 mA */
+    };
+	/*!<Communication interface>*/
+    const uint8_t Interface_Descriptor1[9]
+    {
+        /*Interface Descriptor */
+        0x09, /* bLength: Interface Descriptor size */
+        0x04, /* bDescriptorType: Interface */
+        0x00, /* bInterfaceNumber: Number of Interface */
+        0x00, /* bAlternateSetting: Alternate setting */
+        0x01, /* bNumEndpoints: One endpoints used */
+        0x02, /* bInterfaceClass: Communication Interface Class */
+        0x02, /* bInterfaceSubClass: Abstract Control Model */
+        0x01, /* bInterfaceProtocol: Common AT commands */
+        0x00 /* iInterface: */
+    };
+	const uint8_t Header_Functional_Descriotor[5]
+	{
+		0x05, /* bLength: Endpoint Descriptor size */
+        0x24, /* bDescriptorType: CS_INTERFACE */
+        0x00, /* bDescriptorSubtype: Header Func Desc */
+        0x10, /* bcdCDC: spec release number */
+        0x01
+	};
+	const uint8_t Call_Management_Functional_Descriptor[5]
+	{
+		/*Call Management Functional Descriptor*/
+		/*!<описывает процесс вызовов коммуникационного интерфейса.>*/
+        0x05, /* bFunctionLength */
+        0x24, /* bDescriptorType: CS_INTERFACE */
+        0x01, /* bDescriptorSubtype: Call Management Func Desc */
+        0x00, /* bmCapabilities: D0+D1 */
+        0x01 /* bDataInterface: 1  number of interfaces (two interfaces)*/
+	};
+	const uint8_t ACM_Functional_Descriptor[4]
+	{
+		/*ACM Functional Descriptor*/
+        0x04, /* bFunctionLength */
+        0x24, /* bDescriptorType: CS_INTERFACE */
+        0x02, /* bDescriptorSubtype: Abstract Control Management desc */
+        0x02 /* bmCapabilities , битовая маска поддерживаемых команд*/
+		/*! x:x:x [2]-SendBreak [1]-Set_Line_Coding, Set_Control_Line_State, Get_Line_Coding,
+		Serial_State [0] - Set_Comm_Feature, Clear_Com_Feature, Get_Comm_Feature*/
+	};	
+	const uint8_t Union_Functional_Descriptor[5]
+	{
+		/*! Описывается отношение интерфейсов в группе. Один интерфейс Master, остальные Slave,
+		Запросы и нотификации проходящие через главный интерфейс, применяются ко всей
+		группе интерфейсов */
+		/*Union Functional Descriptor*/
+        0x05, /* bFunctionLength */
+        0x24, /* bDescriptorType: CS_INTERFACE */
+        0x06, /* bDescriptorSubtype: Union func desc */
+        0x00, /* bMasterInterface: Communication class interface */
+        0x01 /* bSlaveInterface0: Data Class Interface ...*/
+	};
+	const uint8_t Ep2_Descriptor[7]
+	{
+		/*Endpoint 2 IN Descriptor*/
+        0x07, /* bLength: Endpoint Descriptor size */
+        0x05, /* bDescriptorType: Endpoint */
+        0x82, /* bEndpointAddress IN2  8-IN 2-endpoint2*/
+        0x03, /* bmAttributes: Interrupt */
+        0x08, /* wMaxPacketSize LO: */
+        0x00, /* wMaxPacketSize HI: */
+        0x10, /* bInterval: */
+	};
+	
+//---------------------------------------------------------------------------------------------------	
+	/*!<Data interface>*/
+	const uint8_t Interface_Descriptor2[9]
+    {
+        /*Interface Descriptor */
+        0x09, /* bLength: Interface Descriptor size */
+        0x04, /* bDescriptorType: Interface */
+        0x01, /* bInterfaceNumber: Number of Interface */
+        0x00, /* bAlternateSetting: Alternate setting */
+        0x01, /* bNumEndpoints: One endpoints used */
+        0x0A, /* bInterfaceClass: DATA Interface Class */
+        0x02, /* bInterfaceSubClass: Abstract Control Model */
+        0x00, /* bInterfaceProtocol: No special */
+        0x00 /* iInterface: */
+    };
+    const uint8_t EP1_In_Descriptor[7]
+    {
+        /*Endpoint 2 Descriptor*/
+        0x07, /* bLength: Endpoint Descriptor size */
+        0x05, /* bDescriptorType: Endpoint */
+        0x81, /* bEndpointAddress IN1  8-IN 1-endpoint1*/
+        0x02, /* bmAttributes: BULK */
+        0x64, /* wMaxPacketSize LO: */
+        0x00, /* wMaxPacketSize HI: */
+        0x00 /* bInterval: */
+    };
+    const uint8_t EP1_OUT_Descriptor[7]
+    {
+        0x07,   /*Endpoint descriptor length = 7 */
+        0x05,   /*Endpoint descriptor type */
+        0x01,   /*Endpoint address (0-OUT 1-endpoint1) */
+        0x02,   /*Interrupt endpoint type Interrupt 0x02 -BULK*/
+        0x64,
+        0x00,
+        0x00     /*Polling interval in milliseconds*/
+    };   
+	const uint8_t LANG_ID_Descriptor[8]
+    {
+        0x08,   /*descriptor length = 7 */
+        0x03,   /*STRING descriptor type */
+        0x04,	/*LANG_US uint16_t*/
+		0x09,   
+        0x04,	/*LANG_US uint16_t*/
+		0x09,   
+        0x04,	/*LANG_US uint16_t*/
+		0x09
+    };   
+	const uint8_t Man_String[13]
+	{
+		/* Index 0x01:  */
+		0x0d,   /*descriptor length = 13 */
+        0x03,   /*STRING descriptor type */
+        "S",	/*LANG_US uint16_t*/
+		"a",
+		"e",
+		"W",
+		"a",
+		"v",
+		"e",
+		".",
+		"c",
+		"o",
+		"m",
+	};
+	const uint8_t Prod_String[14] 
+	{
+		/* Index 0x02:  */
+		0x0e,   /*descriptor length = 14 */
+        0x03,   /*STRING descriptor type */
+        "R",	/*LANG_US uint16_t*/
+		"e",
+		"m",
+		"o",
+		"t",
+		"e",
+		"S",
+		"w",
+		"i",
+		"t",
+		"c",
+		"h"
+	};
+	const uint8_t SN_String[14]
+	{
+		/* Index 0x03:  */
+		0x0e,   /*descriptor length = 14 */
+        0x03,   /*STRING descriptor type */
+        "0",	/*LANG_US uint16_t*/
+		"1",
+		"2",
+		"3",
+		"-",
+		"4",
+		"5",
+		"6",
+		"7",
+		"-",
+		"8",
+		"9"
+	};
+	
+#endif //USB_DESCRIPTORS_H

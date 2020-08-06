@@ -94,73 +94,7 @@ public:
 	#pragma pack(pop)
 	//#pragma pop
     USB_SETUP_req uSetReq; //выделяем память под структуру
-
-    const uint8_t Device_Descriptor[18] =
-    {
-        /* Standard USB device descriptor for the CDC serial driver */
-        18, // size
-        1, // USBGenericDescriptor_DEVICE
-        0x00,0x02, // USBDeviceDescriptor_USB2_00
-        2, // CDCDeviceDescriptor_CLASS
-        0, // CDCDeviceDescriptor_SUBCLASS
-        0, // CDCDeviceDescriptor_PROTOCOL
-        64, // BOARD_USB_ENDPOINTS_MAXPACKETSIZE
-        0xEB,0x03, // CDCDSerialDriverDescriptors_VENDORID
-        0x24,0x61, // CDCDSerialDriverDescriptors_PRODUCTID
-        0x10,0x01, // CDCDSerialDriverDescriptors_RELEASE
-        1, // Index of manufacturer description //0
-        2, // Index of product description //0
-        3, // Index of serial number description //0
-        1 // One possible configuration
-    };
-    const uint8_t Config_Descriptor[9]
-    {
-        /*Configuration Descriptor*/
-        0x09, /* bLength: Configuration Descriptor size */
-        0x02, /* bDescriptorType: Configuration */
-        67,   /* wTotalLength:no of retuint16_t ADDRESS=0;
-    uint16_t CurrentConfiguration=0;urned bytes */
-        0x00,
-        0x02, /* bNumInterfaces: 2 interface */
-        0x01, /* bConfigurationValue: Configuration value */
-        0x00, /* iConfiguration: Index of string descriptor describing the configuration */
-        0x80, /* bmAttributes - Bus powered */
-        0x32 /* MaxPower 100 mA */
-    };
-    const uint8_t Interface_Descriptor[9]
-    {
-        /*Interface Descriptor */
-        0x09, /* bLength: Interface Descriptor size */
-        0x04, /* bDescriptorType: Interface */
-        0x00, /* bInterfaceNumber: Number of Interface */
-        0x00, /* bAlternateSetting: Alternate setting */
-        0x01, /* bNumEndpoints: One endpoints used */
-        0x02, /* bInterfaceClass: Communication Interface Class */
-        0x02, /* bInterfaceSubClass: Abstract Control Model */
-        0x01, /* bInterfaceProtocol: Common AT commands */
-        0x00, /* iInterface: */
-    };
-    const uint8_t EP1_In_Descriptor[7]
-    {
-        /*Endpoint 2 Descriptor*/
-        0x07, /* bLength: Endpoint Descriptor size */
-        0x05, /* bDescriptorType: Endpoint */
-        0x81, /* bEndpointAddress IN1 */
-        0x03, /* bmAttributes: Interrupt */
-        0x08, /* wMaxPacketSize LO: */
-        0x00, /* wMaxPacketSize HI: */
-        0x10, /* bInterval: */
-    };
-    const uint8_t EP1_OUT_Descriptor[7]
-    {
-        0x07,   /*Endpoint descriptor length = 7 */
-        0x05,   /*Endpoint descriptor type */
-        0x01,   /*Endpoint address (OUT, address 1) */
-        0x03,   /*Interrupt endpoint type */
-        0x8,
-        0x00,
-        0x00     /*Polling interval in milliseconds*/
-    };    
+        
 private:
 	//#pragma pack (push,1)
     
