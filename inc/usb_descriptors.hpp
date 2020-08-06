@@ -150,53 +150,53 @@ const uint8_t Device_Descriptor[18] =
 		/* Index 0x01:  */
 		0x0d,   /*descriptor length = 13 */
         0x03,   /*STRING descriptor type */
-        "S",	/*LANG_US uint16_t*/
-		"a",
-		"e",
-		"W",
-		"a",
-		"v",
-		"e",
-		".",
-		"c",
-		"o",
-		"m",
+        'S',	/*LANG_US uint16_t*/
+		'a',
+		'e',
+		'W',
+		'a',
+		'v',
+		'e',
+		'.',
+		'c',
+		'o',
+		'm',
 	};
 	const uint8_t Prod_String[14] 
 	{
 		/* Index 0x02:  */
 		0x0e,   /*descriptor length = 14 */
         0x03,   /*STRING descriptor type */
-        "R",	/*LANG_US uint16_t*/
-		"e",
-		"m",
-		"o",
-		"t",
-		"e",
-		"S",
-		"w",
-		"i",
-		"t",
-		"c",
-		"h"
+        'R',	/*LANG_US uint16_t*/
+		'e',
+		'm',
+		'o',
+		't',
+		'e',
+		'S',
+		'w',
+		'i',
+		't',
+		'c',
+		'h'
 	};
 	const uint8_t SN_String[14]
 	{
 		/* Index 0x03:  */
 		0x0e,   /*descriptor length = 14 */
         0x03,   /*STRING descriptor type */
-        "0",	/*LANG_US uint16_t*/
-		"1",
-		"2",
-		"3",
-		"-",
-		"4",
-		"5",
-		"6",
-		"7",
-		"-",
-		"8",
-		"9"
+        '0',	/*LANG_US uint16_t*/
+		'1',
+		'2',
+		'3',
+		'-',
+		'4',
+		'5',
+		'6',
+		'7',
+		'-',
+		'8',
+		'9'
 	};
 	
 #endif //USB_DESCRIPTORS_H
