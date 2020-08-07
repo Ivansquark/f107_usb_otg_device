@@ -70,7 +70,7 @@ void USB_DEVICE::Enumerate_Setup(void)
   //USB_DEVICE::pThis->resetFlag++;  
   uint16_t len=0;
   uint8_t *pbuf; 
-  switch(setupPack.setup.bRequest)
+  switch(uSetReq.bRequest)
   {    
     case STD_GET_DESCRIPTOR:        
       switch(uSetReq.wValue)
@@ -138,8 +138,10 @@ void USB_DEVICE::Enumerate_Setup(void)
       break;
     case STD_SET_ADDRESS:  // Установка адреса устройства
       //resetFlag=uSetReq.wValue;
-	  addressFlag = true;      
-      break;
+	  addressFlag = true;
+    /*!< записываем пакет статуса нулевой длины >*/
+    WriteINEP(0x00,pbuf,MIN(len , uSetReq.wLength));
+    break;
     case STD_SET_CONFIGURATION: // Установка конфигурации устройства
       Set_CurrentConfiguration((uSetReq.wValue>>4));
       break;       // len-0 -> ZLP
@@ -153,12 +155,11 @@ void USB_DEVICE::Enumerate_Setup(void)
 void USB_DEVICE::SetAdr(uint16_t value)
 {  
     ADDRESS=value;
-	addressFlag = true;
-	USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); 
+	  addressFlag = false;	  
     uint32_t add = value<<4;
     USB_OTG_DEVICE->DCFG |= add; //запись адреса.    
-    USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT;
-    //USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
+    //USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT;
+    USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
     
     USART_debug::usart2_sendSTR("ADDRESS\n");
 	// необходимо выставить подтверждение принятия пакета выставления адреса 
@@ -170,12 +171,24 @@ void USB_DEVICE::Set_CurrentConfiguration(uint16_t value)
 }
 void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
 {
+  /*!<TODO: реализовать запись через очередь>*/
   USB_OTG_IN(EPnum)->DIEPTSIZ =0;
   /*!<записать количество пакетов и размер пакета>*/
-	USB_OTG_IN(EPnum)->DIEPTSIZ |= (1<<19); 
-  USB_OTG_IN(EPnum)->DIEPTSIZ &=~ (1<<20);//(0:1) 1-packet 
-  /*!<количество передаваемых пакетов (по прерыванию USB_OTG_DIEPINT_XFRC передается один пакет)>*/
-  USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
+  if(minLen>64)
+  {
+    USB_OTG_IN(EPnum)->DIEPTSIZ &=~ (1<<19); 
+    USB_OTG_IN(EPnum)->DIEPTSIZ |= (1<<20);//(1:0) 2-packet
+    USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
+  }
+  else
+  {
+    USB_OTG_IN(EPnum)->DIEPTSIZ |= (1<<19); 
+    USB_OTG_IN(EPnum)->DIEPTSIZ &=~ (1<<20);//(0:1) 1-packet 
+    USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
+  }
+  
+	/*!<количество передаваемых пакетов (по прерыванию USB_OTG_DIEPINT_XFRC передается один пакет)>*/
+  
   //USB_OTG_IN(0)->DIEPCTL=(1<<31)|(1<<26); // EPENA; CNAK
   USB_OTG_IN(EPnum)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); //выставляем перед записью
   if(minLen) WriteFIFO(EPnum, buf, minLen);    
@@ -205,9 +218,9 @@ void USB_DEVICE::ReadSetupFIFO(void)
   *(uint32_t *)&uSetReq = USB_OTG_DFIFO(0);  //! берем адрес структуры, приводим его к указателю на адресное поле STM32, разыменовываем и кладем туда адрес FIFO_0
   // тем самым считывается первые 4 байта из Rx_FIFO
   *(((uint32_t *)&uSetReq)+1) = USB_OTG_DFIFO(0); // заполняем вторую часть структуры (очень мудрено сделано)
-	USB_DEVICE::bmRequestType=uSetReq.bmRequestType;
-  USB_DEVICE::bRequest=uSetReq.bRequest;
-  USB_DEVICE::wValue = uSetReq.wValue;  
-  USB_DEVICE::wIndex = uSetReq.wIndex;
-  USB_DEVICE::wLength = uSetReq.wLength;  
+	//USB_DEVICE::bmRequestType=uSetReq.bmRequestType;
+  //USB_DEVICE::bRequest=uSetReq.bRequest;
+  //USB_DEVICE::wValue = uSetReq.wValue;  
+  //USB_DEVICE::wIndex = uSetReq.wIndex;
+  //USB_DEVICE::wLength = uSetReq.wLength;  
 }

@@ -77,6 +77,9 @@ public:
 	uint16_t ADDRESS=0;
     uint16_t CurrentConfiguration=0;
 
+	bool addressFlag{false};
+	void SetAdr(uint16_t value);
+
     //uint8_t bmRequestType{0};
 	//uint8_t bRequest{0};
 	//uint16_t wValue{0};
@@ -99,22 +102,17 @@ public:
 		USB_SETUP_req setup; //!< размер структуры
 		uint8_t b[7];	 	 //!< массив байтов равный размеру структуры
 		uint16_t wRequest;	 //!< Слово объединяющее первые два байта структуры	
-	} setupPack;
-	
-    
+	} setupPack;    
         
 private:
 	//#pragma pack (push,1)
-    bool addresFlag{false};
+    
     void usb_init();
     void fifo_init();    
-    void SetAdr(uint16_t value);
     void Set_CurrentConfiguration(uint16_t value);
     void WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen);
     uint16_t MIN(uint16_t len, uint16_t wLength);
-    void WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len);
-	
-    
+    void WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len);    
 };
 USB_DEVICE* USB_DEVICE::pThis=nullptr;
 
@@ -191,19 +189,22 @@ extern "C" void OTG_FS_IRQHandler(void)
 			
 			if(epint & USB_OTG_DIEPINT_XFRC) // если Transfer Completed interrupt. Показывает, что транзакция завершена как на AHB, так и на USB.
 			{
-				USART_debug::usart2_sendSTR("In XFRC\n");
+				
+				//USART_debug::usart2_sendSTR("In XFRC\n");
+				
                 /*!< (TODO: реализовать очередь в которую сначала закидываем побайтово буффер с дескриптором) >*/                
-				//if(QueWord::pThis->is_not_empty()/*usb.Get_TX_Q_cnt(0)*/)	//если счетчик не нулевой, 			
-				//{
-				//	USB_OTG_DFIFO(0) = QueWord::pThis->pop(); //!< записываем в FIFO значения из очереди //Отправить ещё кусочек
-				//}
-				//else
-				//{
-				//	//EndPoint ENAble. Приложение устанавливает этот бит, чтобы запустить передачу на конечной точке 0.
-					//USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
-					USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
-				//	//разрешит передачу из FIFO
-				//}
+				if(USB_OTG_IN(0)->DIEPTSIZ & USB_OTG_DIEPTSIZ_PKTCNT)//QueWord::pThis->is_not_empty()/*usb.Get_TX_Q_cnt(0)*/)	 			
+				{
+					USB_DEVICE::pThis->WriteFIFO(0, buf, minLen);
+					//USB_OTG_DFIFO(0) = QueWord::pThis->pop(); //!< записываем в FIFO значения из очереди //Отправить ещё кусочек
+				}
+				else
+				{
+					//EndPoint ENAble. Приложение устанавливает этот бит, чтобы запустить передачу на конечной точке 0.
+					USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
+					//USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
+					//разрешит передачу из FIFO
+				}
 			}
 			if(epint & USB_OTG_DIEPINT_TOC) //TimeOut Condition. Показывает, что ядро определило событие таймаута на USB для последнего токена IN на этой конечной точке.
 			{				
@@ -238,6 +239,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 		    USB_OTG_IN(2)->DIEPINT = epint;
 		}   
 		USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT; //IN EndPoints INTerrupt mask. Разрешаем прерывание конечных точек IN
+				
 		return;
     }
 
@@ -261,11 +263,11 @@ extern "C" void OTG_FS_IRQHandler(void)
 		    {					
 		    	USB_DEVICE::pThis->Enumerate_Setup(); // декодировать принятый пакет данных SETUP. (прочесть из Rx_FIFO 8 байт в первый раз должен быть запрос дескриптора устройства)
 				//USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT;
-				if(USB_DEVICE::pThis->addresFlag)
+				if(USB_DEVICE::pThis->addressFlag)
 				{				
 					USB_DEVICE::pThis->SetAdr((USB_DEVICE::pThis->uSetReq.wValue));
-					USB_DEVICE::pThis->addresFlag=false;
-				}
+					USB_DEVICE::pThis->addressFlag=false;
+				}				
 		    }   
 		    //OUT Token received when EndPoint DISabled. Показывает, что был принят токен OUT, когда конечная точка еще не была разрешена.
 		    if(epint & USB_OTG_DOEPINT_OTEPDIS)
@@ -317,8 +319,7 @@ extern "C" void OTG_FS_IRQHandler(void)
                 
 			} break;
 			case 0x03: 
-			USART_debug::usart2_sendSTR("OUT completed\n"); /* OUT completed */
-			
+			USART_debug::usart2_sendSTR("OUT completed\n"); /* OUT completed */			
 			break;
             case 0x04:  /* SETUP completed завершена транзакция SETUP (срабатывает прерывание).
 			выставляется ACK*/
@@ -329,6 +330,7 @@ extern "C" void OTG_FS_IRQHandler(void)
                 USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_OEPINT;
 				//USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT;
 				USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
+				
 				//USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA);
 				// после этого необходимо заполнить Tx дескриптором устройства.
 			}			

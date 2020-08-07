@@ -255,7 +255,7 @@ const uint8_t Device_Descriptor[18] =
 	static constexpr uint16_t SET_CONTROL_LINE_STATE = 0x2122;
 	static constexpr uint16_t SEND_BREAK = 0x2123;
 	static constexpr uint16_t SEND_ENCAPSULATED_COMMAND = 0x2100;
-	static constexpr uint16_t SEND_ENCAPSULATED_COMMAND = 0xA101;
+	static constexpr uint16_t GET_ENCAPSULATED_COMMAND = 0xA101;
 	
 	const uint8_t line_coding[7]={0x00,0xC2,0x01,0x00,0,0,8}; //стоп бит, четность, размер посылки
 	
