@@ -133,7 +133,9 @@ const uint8_t Device_Descriptor[18] =
         0x64,
         0x00,
         0x00     /*Polling interval in milliseconds*/
-    };   
+    };  
+	/*! <Всего 67 байт>*/
+	
 	const uint8_t LANG_ID_Descriptor[8]
     {
         0x08,   /*descriptor length = 7 */
@@ -198,5 +200,64 @@ const uint8_t Device_Descriptor[18] =
 		'8',
 		'9'
 	};
+	/*! <wRequest> */
+	static constexpr uint16_t GET_STATUS_DEVICE = 0x8000;
+	static constexpr uint16_t GET_STATUS_INTERFACE = 0x8100;
+	static constexpr uint16_t GET_STATUS_ENDP = 0x8200;
+    static constexpr uint16_t CLEAR_FEATURE_DEVICE = 0x0001;
+	static constexpr uint16_t CLEAR_FEATURE_INTERFACE = 0x0101;
+	static constexpr uint16_t CLEAR_FEATURE_ENDP = 0x0201;
+    static constexpr uint16_t SET_FEATURE_DEVICE = 0x0003;
+	static constexpr uint16_t SET_FEATURE_INTERFACE = 0x0103;
+	static constexpr uint16_t SET_FEATURE_ENDP = 0x0203;
+    static constexpr uint16_t SET_ADDRESS = 0x0005;
+    static constexpr uint16_t GET_DESCRIPTOR_DEVICE = 0x8006;
+	static constexpr uint16_t GET_DESCRIPTOR_INTERFACE = 0x8106;
+	static constexpr uint16_t GET_DESCRIPTOR_ENDP = 0x8206;
+    static constexpr uint16_t SET_DESCRIPTOR = 0x0007;
+    static constexpr uint16_t GET_CONFIGURATION = 0x8008;
+    static constexpr uint16_t SET_CONFIGURATION = 0x0009;
+    static constexpr uint16_t GET_INTERFACE = 0x810A;
+    static constexpr uint16_t SET_INTERFACE = 0x010B;
+    static constexpr uint16_t SYNCH_FRAME = 0x820C;
+	static constexpr uint16_t GET_REPORT = 0xA101;
+	/*! <bmRequestType> */    
+    static constexpr uint8_t STD_GET_STATUS = 0x00;
+    static constexpr uint8_t STD_CLEAR_FEATURE = 0x01;
+    static constexpr uint8_t STD_SET_FEATURE = 0x03;
+    static constexpr uint8_t STD_SET_ADDRESS = 0x05;
+    static constexpr uint8_t STD_GET_DESCRIPTOR = 0x06;
+    static constexpr uint8_t STD_SET_DESCRIPTOR = 0x07;
+    static constexpr uint8_t STD_GET_CONFIGURATION = 0x08;
+    static constexpr uint8_t STD_SET_CONFIGURATION = 0x09;
+    static constexpr uint8_t STD_GET_INTERFACE = 0xA;
+    static constexpr uint8_t STD_SET_INTERFACE = 0x11;
+    static constexpr uint8_t STD_SYNCH_FRAME = 0x12;
+    /*! <mValue> */
+    static constexpr uint16_t USB_DESC_TYPE_DEVICE = 0x0100;
+    static constexpr uint16_t USB_DESC_TYPE_CONFIGURATION = 0x0200;
+    //static constexpr uint16_t USB_DESC_TYPE_STRING = 0x0300;
+    static constexpr uint16_t USB_DESC_TYPE_INTERFACE1 = 0x0400;
+	static constexpr uint16_t USB_DESC_TYPE_INTERFACE2 = 0x0401;
+    static constexpr uint16_t USB_DESC_TYPE_EP_DESCRIPTOR1 = 0x0500;
+	static constexpr uint16_t USB_DESC_TYPE_EP_DESCRIPTOR2 = 0x0501;
+    static constexpr uint16_t USB_DESC_TYPE_DEVICE_QUALIFIER = 0x0700;
+
+    static constexpr uint16_t USBD_IDX_LANGID_STR = 0x0300;
+    static constexpr uint16_t USBD_strManufacturer = 0x0301;
+    static constexpr uint16_t USBD_strProduct = 0x0302;
+    static constexpr uint16_t USBD_IDX_SERIAL_STR = 0x0303;
+    static constexpr uint16_t USBD_IDX_CONFIG_STR = 0x0304;
+	
+	//<(bRequest<<8)|(bmRequestType)>
+	static constexpr uint16_t GET_LINE_CODING = 0xA121;
+	static constexpr uint16_t SET_LINE_CODING = 0x2120;
+	static constexpr uint16_t SET_CONTROL_LINE_STATE = 0x2122;
+	static constexpr uint16_t SEND_BREAK = 0x2123;
+	static constexpr uint16_t SEND_ENCAPSULATED_COMMAND = 0x2100;
+	static constexpr uint16_t SEND_ENCAPSULATED_COMMAND = 0xA101;
+	
+	const uint8_t line_coding[7]={0x00,0xC2,0x01,0x00,0,0,8}; //стоп бит, четность, размер посылки
+	
 	
 #endif //USB_DESCRIPTORS_H

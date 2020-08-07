@@ -77,11 +77,11 @@ public:
 	uint16_t ADDRESS=0;
     uint16_t CurrentConfiguration=0;
 
-    uint8_t bmRequestType{0};
-	uint8_t bRequest{0};
-	uint16_t wValue{0};
-	uint16_t wIndex{0};
-	uint16_t wLength{0};
+    //uint8_t bmRequestType{0};
+	//uint8_t bRequest{0};
+	//uint16_t wValue{0};
+	//uint16_t wIndex{0};
+	//uint16_t wLength{0};
 	#pragma pack(push, 1)
 	typedef struct setup_request
     {
@@ -91,13 +91,21 @@ public:
     	uint16_t wIndex=0;	   //
     	uint16_t wLength=0;	   //
     }USB_SETUP_req;
+	USB_SETUP_req uSetReq; //выделяем память под структуру
 	#pragma pack(pop)
-	//#pragma pop
-    USB_SETUP_req uSetReq; //выделяем память под структуру
+	/*! <накладываем на структуру объединение, чтобы обращаться к различным полям> */
+	typedef union
+	{
+		USB_SETUP_req setup; //!< размер структуры
+		uint8_t b[7];	 	 //!< массив байтов равный размеру структуры
+		uint16_t wRequest;	 //!< Слово объединяющее первые два байта структуры	
+	} setupPack;
+	
+    
         
 private:
 	//#pragma pack (push,1)
-    
+    bool addresFlag{false};
     void usb_init();
     void fifo_init();    
     void SetAdr(uint16_t value);
@@ -106,33 +114,7 @@ private:
     uint16_t MIN(uint16_t len, uint16_t wLength);
     void WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len);
 	
-    /*! <bmRequestType> */    
-    static constexpr uint8_t STD_GET_STATUS = 0x00;
-    static constexpr uint8_t STD_CLEAR_FEATURE = 0x01;
-    static constexpr uint8_t STD_SET_FEATURE = 0x03;
-    static constexpr uint8_t STD_SET_ADDRESS = 0x05;
-    static constexpr uint8_t STD_GET_DESCRIPTOR = 0x06;
-    static constexpr uint8_t STD_SET_DESCRIPTOR = 0x07;
-    static constexpr uint8_t STD_GET_CONFIGURATION = 0x08;
-    static constexpr uint8_t STD_SET_CONFIGURATION = 0x09;
-    static constexpr uint8_t STD_GET_INTERFACE = 0xA;
-    static constexpr uint8_t STD_SET_INTERFACE = 0x11;
-    static constexpr uint8_t STD_SYNCH_FRAME = 0x12;
-    /*! <mValue> */
-    static constexpr uint16_t USB_DESC_TYPE_DEVICE = 0x0100;
-    static constexpr uint16_t USB_DESC_TYPE_CONFIGURATION = 0x0200;
-    //static constexpr uint16_t USB_DESC_TYPE_STRING = 0x0300;
-    static constexpr uint16_t USB_DESC_TYPE_INTERFACE1 = 0x0400;
-	static constexpr uint16_t USB_DESC_TYPE_INTERFACE2 = 0x0401;
-    static constexpr uint16_t USB_DESC_TYPE_EP_DESCRIPTOR1 = 0x0500;
-	static constexpr uint16_t USB_DESC_TYPE_EP_DESCRIPTOR2 = 0x0501;
-    static constexpr uint16_t USB_DESC_TYPE_DEVICE_QUALIFIER = 0x0700;
-
-    static constexpr uint16_t USBD_IDX_LANGID_STR = 0x0300;
-    static constexpr uint16_t USBD_strManufacturer = 0x0301;
-    static constexpr uint16_t USBD_strProduct = 0x0302;
-    static constexpr uint16_t USBD_IDX_SERIAL_STR = 0x0303;
-    static constexpr uint16_t USBD_IDX_CONFIG_STR = 0x0304;
+    
 };
 USB_DEVICE* USB_DEVICE::pThis=nullptr;
 
@@ -276,10 +258,14 @@ extern "C" void OTG_FS_IRQHandler(void)
 		    }
 		    //SETUP phase done. На этом прерывании приложение может декодировать принятый пакет данных SETUP.
 		    if(epint & USB_OTG_DOEPINT_STUP) // Показывает, что фаза SETUP завершена (пришел пакет)
-		    {						
-				USART_debug::usart2_sendSTR("Enumerate_Setup\n");
+		    {					
 		    	USB_DEVICE::pThis->Enumerate_Setup(); // декодировать принятый пакет данных SETUP. (прочесть из Rx_FIFO 8 байт в первый раз должен быть запрос дескриптора устройства)
 				//USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT;
+				if(USB_DEVICE::pThis->addresFlag)
+				{				
+					USB_DEVICE::pThis->SetAdr((USB_DEVICE::pThis->uSetReq.wValue));
+					USB_DEVICE::pThis->addresFlag=false;
+				}
 		    }   
 		    //OUT Token received when EndPoint DISabled. Показывает, что был принят токен OUT, когда конечная точка еще не была разрешена.
 		    if(epint & USB_OTG_DOEPINT_OTEPDIS)
@@ -309,7 +295,9 @@ extern "C" void OTG_FS_IRQHandler(void)
 		uint8_t status = ((USB_OTG_FS->GRXSTSP & USB_OTG_GRXSTSP_PKTSTS)>>17)&0xF; //то же самое		
 		switch (status) 
 		{
+			/*принят пакет данных OUT. */
 			case 2: USART_debug::usart2_sendSTR("OUT packet\n"); break;
+			/*принят пакет данных SETUP.*/
 			case 6: // SETUP packet recieve Эти данные показывают, что в RxFIFO сейчас доступен для чтения пакет SETUP указанной конечной точки.
 			{
 				//USB_DEVICE::pThis->resetFlag=status;
@@ -319,7 +307,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 				{							
 					USB_DEVICE::pThis->ReadSetupFIFO();	
 					//uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его.
-					USART_debug::usart2_sendSTR("readFIFO\n");
+					//USART_debug::usart2_sendSTR("readFIFO\n");
 					//USB_DEVICE::pThis->resetFlag=setupStatus;
 					//USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
 				}
@@ -328,8 +316,12 @@ extern "C" void OTG_FS_IRQHandler(void)
 					//Flush_TX(ep);
                 
 			} break;
-			case 0x03: USART_debug::usart2_sendSTR("OUT competed\n"); /* OUT completed */break;
-            case 0x04:  /* SETUP completed */
+			case 0x03: 
+			USART_debug::usart2_sendSTR("OUT completed\n"); /* OUT completed */
+			
+			break;
+            case 0x04:  /* SETUP completed завершена транзакция SETUP (срабатывает прерывание).
+			выставляется ACK*/
 			{
 				//USART_debug::usart2_sendSTR("SETUP Completed\n");
 				//EPENA Приложение устанавливает этот бит, чтобы запустить передачу на конечной точке 0.

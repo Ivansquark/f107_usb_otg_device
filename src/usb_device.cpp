@@ -70,7 +70,7 @@ void USB_DEVICE::Enumerate_Setup(void)
   //USB_DEVICE::pThis->resetFlag++;  
   uint16_t len=0;
   uint8_t *pbuf; 
-  switch(uSetReq.bRequest)
+  switch(setupPack.setup.bRequest)
   {    
     case STD_GET_DESCRIPTOR:        
       switch(uSetReq.wValue)
@@ -138,7 +138,7 @@ void USB_DEVICE::Enumerate_Setup(void)
       break;
     case STD_SET_ADDRESS:  // Установка адреса устройства
       //resetFlag=uSetReq.wValue;
-      SetAdr((uSetReq.wValue));
+	  addressFlag = true;      
       break;
     case STD_SET_CONFIGURATION: // Установка конфигурации устройства
       Set_CurrentConfiguration((uSetReq.wValue>>4));
@@ -153,12 +153,16 @@ void USB_DEVICE::Enumerate_Setup(void)
 void USB_DEVICE::SetAdr(uint16_t value)
 {  
     ADDRESS=value;
+	addressFlag = true;
+	USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); 
     uint32_t add = value<<4;
     USB_OTG_DEVICE->DCFG |= add; //запись адреса.    
     USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT;
     //USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
-    USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); 
+    
     USART_debug::usart2_sendSTR("ADDRESS\n");
+	// необходимо выставить подтверждение принятия пакета выставления адреса 
+	// IN status packet  (sendInZeroPacket)
 }
 void USB_DEVICE::Set_CurrentConfiguration(uint16_t value)
 {
