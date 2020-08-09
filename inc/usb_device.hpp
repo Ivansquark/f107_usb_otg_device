@@ -108,7 +108,8 @@ private:
 	//#pragma pack (push,1)
     
     void usb_init();
-    void fifo_init();    
+    void fifo_init();  
+	void ep_1_2_init();  
     void Set_CurrentConfiguration(uint16_t value);
     void WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen);
     uint16_t MIN(uint16_t len, uint16_t wLength);
@@ -195,14 +196,16 @@ extern "C" void OTG_FS_IRQHandler(void)
                 /*!< (TODO: реализовать очередь в которую сначала закидываем побайтово буффер с дескриптором) >*/                
 				if(USB_OTG_IN(0)->DIEPTSIZ & USB_OTG_DIEPTSIZ_PKTCNT)//QueWord::pThis->is_not_empty()/*usb.Get_TX_Q_cnt(0)*/)	 			
 				{
-					USB_DEVICE::pThis->WriteFIFO(0, buf, minLen);
+					USART_debug::usart2_sendSTR("In XFRC PKTCNT \n");
+					//USB_DEVICE::pThis->WriteFIFO(0, buf, minLen);
 					//USB_OTG_DFIFO(0) = QueWord::pThis->pop(); //!< записываем в FIFO значения из очереди //Отправить ещё кусочек
 				}
 				else
 				{
 					//EndPoint ENAble. Приложение устанавливает этот бит, чтобы запустить передачу на конечной точке 0.
-					USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
-					//USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
+					//USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
+					/*!<Разрешаем входную точку по приему пакета OUT>*/
+					USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA); // Clear NAK. Запись в этот бит очистит бит NAK для конечной точки.
 					//разрешит передачу из FIFO
 				}
 			}

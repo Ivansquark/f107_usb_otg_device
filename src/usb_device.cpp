@@ -83,25 +83,25 @@ void USB_DEVICE::Enumerate_Setup(void)
           break;
         case USB_DESC_TYPE_CONFIGURATION:   //Запрос дескриптора конфигурации
         USART_debug::usart2_sendSTR("CONFIGURATION DESCRIPTER\n");
-          len = sizeof(Config_Descriptor);
-          pbuf = (uint8_t *)Config_Descriptor;
+          len = sizeof(confDescr);
+          pbuf = (uint8_t *)&confDescr;
           break;   
 		  
-        case USB_DESC_TYPE_INTERFACE1:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
-        USART_debug::usart2_sendSTR("INTERFACE DESCRIPTER\n");
-          len = sizeof(Interface_Descriptor1);
-          pbuf = (uint8_t *)Interface_Descriptor1;             
-          break;    
-        case USB_DESC_TYPE_EP_DESCRIPTOR1:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
-          USART_debug::usart2_sendSTR("EP DESCRIPTER1_IN\n");
-          len = sizeof(EP1_In_Descriptor);
-          pbuf = (uint8_t *)EP1_In_Descriptor;             
-          break;
-        case USB_DESC_TYPE_EP_DESCRIPTOR2:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
-          USART_debug::usart2_sendSTR("EP DESCRIPTER1_OUT\n");
-          len = sizeof(EP1_OUT_Descriptor);
-          pbuf = (uint8_t *)EP1_OUT_Descriptor;             
-          break;  
+        //case USB_DESC_TYPE_INTERFACE1:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
+        //USART_debug::usart2_sendSTR("INTERFACE DESCRIPTER\n");
+        //  len = sizeof(Interface_Descriptor1);
+        //  pbuf = (uint8_t *)Interface_Descriptor1;             
+        //  break;    
+        //case USB_DESC_TYPE_EP_DESCRIPTOR1:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
+        //  USART_debug::usart2_sendSTR("EP DESCRIPTER1_IN\n");
+        //  len = sizeof(EP1_In_Descriptor);
+        //  pbuf = (uint8_t *)EP1_In_Descriptor;             
+        //  break;
+        //case USB_DESC_TYPE_EP_DESCRIPTOR2:  //Запрос дескриптора USB_DESC_TYPE_INTERFACE
+        //  USART_debug::usart2_sendSTR("EP DESCRIPTER1_OUT\n");
+        //  len = sizeof(EP1_OUT_Descriptor);
+        //  pbuf = (uint8_t *)EP1_OUT_Descriptor;             
+        //  break;  
                
         case USBD_IDX_LANGID_STR: //Запрос строкового дескриптора
         USART_debug::usart2_sendSTR("USBD_IDX_LANGID_STR\n");
@@ -121,7 +121,8 @@ void USB_DEVICE::Enumerate_Setup(void)
         case USBD_IDX_SERIAL_STR: //Запрос строкового дескриптора
         USART_debug::usart2_sendSTR("USBD_IDX_SERIAL_STR\n");
           len = sizeof(SN_String);
-          pbuf = (uint8_t *)SN_String;                             
+          pbuf = (uint8_t *)SN_String;          
+          ep_1_2_init(); //инициализируем конечные точки 1-прием, передача и 2-настройка                             
           break;
         //case USBD_IDX_CONFIG_STR:
         //  len = sizeof(StringConfig);
@@ -140,15 +141,14 @@ void USB_DEVICE::Enumerate_Setup(void)
       //resetFlag=uSetReq.wValue;
 	  addressFlag = true;
     /*!< записываем пакет статуса нулевой длины >*/
-    WriteINEP(0x00,pbuf,MIN(len , uSetReq.wLength));
+    //WriteINEP(0x00,pbuf,MIN(len , uSetReq.wLength));
     break;
     case STD_SET_CONFIGURATION: // Установка конфигурации устройства
       Set_CurrentConfiguration((uSetReq.wValue>>4));
       break;       // len-0 -> ZLP
 
       // ... И так далее
-  } 
-  
+  }   
   WriteINEP(0x00,pbuf,MIN(len , uSetReq.wLength));   // записываем в конечную точку адрес дескриптора и его размер (а также запрошенный размер)
 }
 
@@ -174,24 +174,13 @@ void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
   /*!<TODO: реализовать запись через очередь>*/
   USB_OTG_IN(EPnum)->DIEPTSIZ =0;
   /*!<записать количество пакетов и размер пакета>*/
-  if(minLen>64)
-  {
-    USB_OTG_IN(EPnum)->DIEPTSIZ &=~ (1<<19); 
-    USB_OTG_IN(EPnum)->DIEPTSIZ |= (1<<20);//(1:0) 2-packet
-    USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
-  }
-  else
-  {
-    USB_OTG_IN(EPnum)->DIEPTSIZ |= (1<<19); 
-    USB_OTG_IN(EPnum)->DIEPTSIZ &=~ (1<<20);//(0:1) 1-packet 
-    USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
-  }
+  uint8_t Pcnt = minLen/64 +1;
   
-	/*!<количество передаваемых пакетов (по прерыванию USB_OTG_DIEPINT_XFRC передается один пакет)>*/
-  
-  //USB_OTG_IN(0)->DIEPCTL=(1<<31)|(1<<26); // EPENA; CNAK
+  USB_OTG_IN(EPnum)->DIEPTSIZ |= (Pcnt<<19);
+  USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
+   /*!<количество передаваемых пакетов (по прерыванию USB_OTG_DIEPINT_XFRC передается один пакет)>*/
   USB_OTG_IN(EPnum)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); //выставляем перед записью
-  if(minLen) WriteFIFO(EPnum, buf, minLen);    
+  if(minLen) WriteFIFO(EPnum, buf, minLen); //если нет байтов передаем пустой пакет    
 }
 uint16_t USB_DEVICE::MIN(uint16_t len, uint16_t wLength)
 {
@@ -205,9 +194,7 @@ void USB_DEVICE::WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len)
     for (uint32_t index = 0; index < words2write; index++, src += 4)
     {
         /*!<закидываем в fifo 32-битные слова>*/
-        //USART_debug::usart2_send(src[7]); 
-        USB_OTG_DFIFO(fifo_num) = *((__packed uint32_t *)src);        
-        //resetFlag++; 
+        USB_OTG_DFIFO(fifo_num) = *((__packed uint32_t *)src);                
     }
     USART_debug::usart2_sendSTR("WRITE in EP0\n");    
 }
@@ -217,10 +204,26 @@ void USB_DEVICE::ReadSetupFIFO(void)
   //Прочитать SETUP пакет из FIFO, он всегда 8 байт
   *(uint32_t *)&uSetReq = USB_OTG_DFIFO(0);  //! берем адрес структуры, приводим его к указателю на адресное поле STM32, разыменовываем и кладем туда адрес FIFO_0
   // тем самым считывается первые 4 байта из Rx_FIFO
-  *(((uint32_t *)&uSetReq)+1) = USB_OTG_DFIFO(0); // заполняем вторую часть структуры (очень мудрено сделано)
-	//USB_DEVICE::bmRequestType=uSetReq.bmRequestType;
-  //USB_DEVICE::bRequest=uSetReq.bRequest;
-  //USB_DEVICE::wValue = uSetReq.wValue;  
-  //USB_DEVICE::wIndex = uSetReq.wIndex;
-  //USB_DEVICE::wLength = uSetReq.wLength;  
+  *(((uint32_t *)&uSetReq)+1) = USB_OTG_DFIFO(0); // заполняем вторую часть структуры (очень мудрено сделано)	
+}
+void USB_DEVICE::ep_1_2_init()
+{
+  /*!<EP1_IN, EP1_OUT - BULK, EP2_IN - INTERRUPT>*/
+  USB_OTG_IN(1)->DIEPCTL|=64;// 64 байта в пакете
+  USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_1;
+  USB_OTG_IN(1)->DIEPCTL&=~USB_OTG_DIEPCTL_EPTYP_0; //1:0 - BULK
+  USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_TXFNUM_0;//Tx_FIFO_1 0:0:0:1
+  USB_OTG_OUT(1)->DOEPCTL|=64;// 64 байта в пакете
+  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_EPTYP_1;
+  USB_OTG_OUT(1)->DOEPCTL&=~USB_OTG_DOEPCTL_EPTYP_0; //1:0 - BULK 
+  //------------------------------------------------------------------
+  USB_OTG_IN(2)->DIEPCTL|=64;// 64 байта в пакете
+  USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_1;
+  USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_0; //1:1 - INTERRUPT
+  USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_1;
+  USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_0;//Tx_FIFO_2 0:0:1:0
+
+  USB_OTG_OUT(0)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 1:1 = 3
+	  // XFRSIZE = 64 - размер транзакции в байтах
+	USB_OTG_OUT(1)->DOEPTSIZ |= 64;//0x40 
 }
