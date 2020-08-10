@@ -20,8 +20,6 @@ int main()
 	Font_16x16 font16;
 	__enable_irq();
 	USB_DEVICE usb;
-
-	uint32_t count=0;
 	USART_debug usart2(2);
 	__enable_irq();
 	while(1)

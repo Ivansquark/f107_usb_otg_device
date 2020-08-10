@@ -70,10 +70,10 @@ void USB_DEVICE::Enumerate_Setup(void)
   //USB_DEVICE::pThis->resetFlag++;  
   uint16_t len=0;
   uint8_t *pbuf; 
-  switch(uSetReq.bRequest)
+  switch(swap(setupPack.wRequest))
   {    
-    case STD_GET_DESCRIPTOR:        
-      switch(uSetReq.wValue)
+    case GET_DESCRIPTOR_DEVICE:        
+      switch(setupPack.setup.wValue)
       {        
         case USB_DESC_TYPE_DEVICE:   //Запрос дескриптора устройства
         USART_debug::usart2_sendSTR("DEVICE DESCRIPTER\n");
@@ -136,7 +136,7 @@ void USB_DEVICE::Enumerate_Setup(void)
          //... И так далее
       }
       break;
-    case STD_SET_ADDRESS:  // Установка адреса устройства
+    case SET_ADDRESS:  // Установка адреса устройства
       //resetFlag=uSetReq.wValue;
 	  addressFlag = true;
     /*!< записываем пакет статуса нулевой длины >*/
@@ -144,44 +144,49 @@ void USB_DEVICE::Enumerate_Setup(void)
     break;
 	case GET_CONFIGURATION:
 		/*Устройство передает один байт, содержащий код конфигурации устройства*/
-		pbuf=(uint8_t*)confDescr+5; //номер конфигурации (единственной)
+		pbuf=(uint8_t*)&confDescr+5; //номер конфигурации (единственной)
 		len=1;
+    USART_debug::usart2_sendSTR("GET_CONFIGURATION\n");
 	break;
     case SET_CONFIGURATION: // Установка конфигурации устройства
 	/*<здесь производится конфигурация конечных точек в соответствии с принятой конфигурацией (она одна)>*/
-      Set_CurrentConfiguration((uSetReq.wValue>>4));
-	  ep_1_2_init(); //инициализируем конечные точки 1-прием, передача и 2-настройка    
+      Set_CurrentConfiguration((setupPack.setup.wValue>>4));
+	    ep_1_2_init(); //инициализируем конечные точки 1-прием, передача и 2-настройка    
+      USART_debug::usart2_sendSTR("SET_CONFIGURATION\n");
       break;       // len-0 -> ZLP
 	  
 	/* CDC Specific requests */
     case SET_LINE_CODING:
+    USART_debug::usart2_sendSTR("SET_LINE_CODING\n");
       cdc_set_line_coding();           
       break;
     case GET_LINE_CODING:
+    USART_debug::usart2_sendSTR("GET_LINE_CODING\n");
       cdc_get_line_coding();           
       break;
     case SET_CONTROL_LINE_STATE:
+    USART_debug::usart2_sendSTR("SET_CONTROL_LINE_STATE\n");
       cdc_set_control_line_state();    
       break;
     case SEND_BREAK:
+    USART_debug::usart2_sendSTR("SEND_BREAK\n");
       cdc_send_break();                
       break;
     case SEND_ENCAPSULATED_COMMAND:
+    USART_debug::usart2_sendSTR("SEND_ENCAPSULATED_COMMAND\n");
       cdc_send_encapsulated_command(); 
       break;
-    case GET_ENCAPSULATED_COMMAND:
+    case GET_ENCAPSULATED_RESPONSE:
+    USART_debug::usart2_sendSTR("GET_ENCAPSULATED_RESPONSE\n");
       cdc_get_encapsulated_command();  
       break;
-
 	
 	default: stall();break;
 
       // ... И так далее
   }   
-  WriteINEP(0x00,pbuf,MIN(len , uSetReq.wLength));   // записываем в конечную точку адрес дескриптора и его размер (а также запрошенный размер)
+  WriteINEP(0x00,pbuf,MIN(len, setupPack.setup.wLength));   // записываем в конечную точку адрес дескриптора и его размер (а также запрошенный размер)
 }
-
-
 
 void USB_DEVICE::SetAdr(uint16_t value)
 {  
@@ -232,12 +237,17 @@ void USB_DEVICE::WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len)
 void USB_DEVICE::ReadSetupFIFO(void)
 {  
   //Прочитать SETUP пакет из FIFO, он всегда 8 байт
-  *(uint32_t *)&uSetReq = USB_OTG_DFIFO(0);  //! берем адрес структуры, приводим его к указателю на адресное поле STM32, разыменовываем и кладем туда адрес FIFO_0
+  *(uint32_t *)&setupPack = USB_OTG_DFIFO(0);  //! берем адрес структуры, приводим его к указателю на адресное поле STM32, разыменовываем и кладем туда адрес FIFO_0
   // тем самым считывается первые 4 байта из Rx_FIFO
-  *(((uint32_t *)&uSetReq)+1) = USB_OTG_DFIFO(0); // заполняем вторую часть структуры (очень мудрено сделано)	
+  *(((uint32_t *)&setupPack)+1) = USB_OTG_DFIFO(0); // заполняем вторую часть структуры (очень мудрено сделано)	
+  //USART_debug::usart2_send(setupPack.b[0]);USART_debug::usart2_send(setupPack.b[1]);
+  //USART_debug::usart2_send(setupPack.b[2]);USART_debug::usart2_send(setupPack.b[3]);
+  //USART_debug::usart2_send(setPack.b[4]);USART_debug::usart2_send(setPack.b[5]);
+  //USART_debug::usart2_send(setPack.b[6]);USART_debug::usart2_send(setPack.b[7]);
+
 }
 void USB_DEVICE::ep_1_2_init()
-{
+{  
   /*!<EP1_IN, EP1_OUT - BULK, EP2_IN - INTERRUPT>*/
   USB_OTG_IN(1)->DIEPCTL|=64;// 64 байта в пакете
   USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_1;
@@ -253,7 +263,7 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_1;
   USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_0;//Tx_FIFO_2 0:0:1:0
 
-  USB_OTG_OUT(0)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 1:1 = 3
+  USB_OTG_OUT(1)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 1:1 = 3
 	  // XFRSIZE = 64 - размер транзакции в байтах
 	USB_OTG_OUT(1)->DOEPTSIZ |= 64;//0x40 
 //-------------------------------------------------------
@@ -268,14 +278,12 @@ void USB_DEVICE::stall()
 
 void USB_DEVICE::cdc_set_line_coding()
 {
-	struct lineCode
-	{
-		uint8_t lineC[8];
-	}
-	*(uint32_t*)(&lineCode) = USB_OTG_DFIFO(0);
-	*((uint32_t*)(&lineCode)+1) = USB_OTG_DFIFO(0); //заполнили структуру
+	uint8_t lineC[8];	
+	*(uint32_t*)(lineC) = USB_OTG_DFIFO(0);
+	*((uint32_t*)(lineC)+1) = USB_OTG_DFIFO(0); //заполнили структуру
 	for(uint8_t i=0;i<7;i++)
-	{line_code[i] = *((uint8_t*)(&lineCode)+i)} //это если из FIFO читается подряд (если нет надо по другому)		
+	{line_code[i] = *((uint8_t*)(&lineC)+i);} //это если из FIFO читается подряд (если нет надо по другому)		
+  USART_debug::usart2_sendSTR("line_code \n");
 }
 void USB_DEVICE::cdc_get_line_coding()
 {
@@ -290,3 +298,12 @@ void USB_DEVICE::read_BULK_FIFO(uint8_t size)
 	//uint8_t size = USB_OTG_OUT(1)->DOEPTSIZ & USB_OTG_DOEPTSIZ_XFRSIZ;
 	
 }
+
+void USB_DEVICE::cdc_set_control_line_state()
+{}
+void USB_DEVICE::cdc_send_break()
+{}
+void USB_DEVICE::cdc_send_encapsulated_command()
+{}
+void USB_DEVICE::cdc_get_encapsulated_command()
+{}
