@@ -121,8 +121,7 @@ void USB_DEVICE::Enumerate_Setup(void)
         case USBD_IDX_SERIAL_STR: //Запрос строкового дескриптора
         USART_debug::usart2_sendSTR("USBD_IDX_SERIAL_STR\n");
           len = sizeof(SN_String);
-          pbuf = (uint8_t *)SN_String;          
-          ep_1_2_init(); //инициализируем конечные точки 1-прием, передача и 2-настройка                             
+          pbuf = (uint8_t *)SN_String;    
           break;
         //case USBD_IDX_CONFIG_STR:
         //  len = sizeof(StringConfig);
@@ -143,14 +142,46 @@ void USB_DEVICE::Enumerate_Setup(void)
     /*!< записываем пакет статуса нулевой длины >*/
     //WriteINEP(0x00,pbuf,MIN(len , uSetReq.wLength));
     break;
-    case STD_SET_CONFIGURATION: // Установка конфигурации устройства
+	case GET_CONFIGURATION:
+		/*Устройство передает один байт, содержащий код конфигурации устройства*/
+		pbuf=(uint8_t*)confDescr+5; //номер конфигурации (единственной)
+		len=1;
+	break;
+    case SET_CONFIGURATION: // Установка конфигурации устройства
+	/*<здесь производится конфигурация конечных точек в соответствии с принятой конфигурацией (она одна)>*/
       Set_CurrentConfiguration((uSetReq.wValue>>4));
+	  ep_1_2_init(); //инициализируем конечные точки 1-прием, передача и 2-настройка    
       break;       // len-0 -> ZLP
+	  
+	/* CDC Specific requests */
+    case SET_LINE_CODING:
+      cdc_set_line_coding();           
+      break;
+    case GET_LINE_CODING:
+      cdc_get_line_coding();           
+      break;
+    case SET_CONTROL_LINE_STATE:
+      cdc_set_control_line_state();    
+      break;
+    case SEND_BREAK:
+      cdc_send_break();                
+      break;
+    case SEND_ENCAPSULATED_COMMAND:
+      cdc_send_encapsulated_command(); 
+      break;
+    case GET_ENCAPSULATED_COMMAND:
+      cdc_get_encapsulated_command();  
+      break;
+
+	
+	default: stall();break;
 
       // ... И так далее
   }   
   WriteINEP(0x00,pbuf,MIN(len , uSetReq.wLength));   // записываем в конечную точку адрес дескриптора и его размер (а также запрошенный размер)
 }
+
+
 
 void USB_DEVICE::SetAdr(uint16_t value)
 {  
@@ -173,9 +204,8 @@ void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
 {
   /*!<TODO: реализовать запись через очередь>*/
   USB_OTG_IN(EPnum)->DIEPTSIZ =0;
-  /*!<записать количество пакетов и размер пакета>*/
-  uint8_t Pcnt = minLen/64 +1;
-  
+  /*!<записать количество пакетов и размер посылки>*/
+  uint8_t Pcnt = minLen/64 +1;  
   USB_OTG_IN(EPnum)->DIEPTSIZ |= (Pcnt<<19);
   USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
    /*!<количество передаваемых пакетов (по прерыванию USB_OTG_DIEPINT_XFRC передается один пакет)>*/
@@ -226,4 +256,37 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_OUT(0)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 1:1 = 3
 	  // XFRSIZE = 64 - размер транзакции в байтах
 	USB_OTG_OUT(1)->DOEPTSIZ |= 64;//0x40 
+//-------------------------------------------------------
+/*< Заполняем массив line_code>*/	
+	for(uint8_t i=0;i<7;i++){line_code[i] = line_coding[i];}
+}
+
+void USB_DEVICE::stall()
+{
+	/*TODO: send STALL signal*/
+}
+
+void USB_DEVICE::cdc_set_line_coding()
+{
+	struct lineCode
+	{
+		uint8_t lineC[8];
+	}
+	*(uint32_t*)(&lineCode) = USB_OTG_DFIFO(0);
+	*((uint32_t*)(&lineCode)+1) = USB_OTG_DFIFO(0); //заполнили структуру
+	for(uint8_t i=0;i<7;i++)
+	{line_code[i] = *((uint8_t*)(&lineCode)+i)} //это если из FIFO читается подряд (если нет надо по другому)		
+}
+void USB_DEVICE::cdc_get_line_coding()
+{
+	uint8_t* buf; 
+	buf=(uint8_t*)&line_code;
+	WriteINEP(0,buf,7);
+}
+
+void USB_DEVICE::read_BULK_FIFO(uint8_t size)
+{
+	//uint8_t cnt = USB_OTG_OUT(1)->DOEPTSIZ & USB_OTG_DOEPTSIZ_PKTCNT; //считываем количество принятых пакетов (должен быть один)
+	//uint8_t size = USB_OTG_OUT(1)->DOEPTSIZ & USB_OTG_DOEPTSIZ_XFRSIZ;
+	
 }

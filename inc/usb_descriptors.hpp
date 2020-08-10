@@ -47,7 +47,7 @@ constexpr uint8_t Device_Descriptor[18] =
             0x32 /* MaxPower 100 mA */
         },
 	/*!<Communication interface>*/    
-        /*Interface Descriptor */
+        /*Interface Descriptor master*/
         {
             0x09, /* bLength: Interface Descriptor size */
             0x04, /* bDescriptorType: Interface */
@@ -59,56 +59,56 @@ constexpr uint8_t Device_Descriptor[18] =
             0x01, /* bInterfaceProtocol: Common AT commands */
             0x00 /* iInterface: */
         },
-        /*!<header descriptor>*/
-        {
-		    0x05, /* bLength: Endpoint Descriptor size */
-            0x24, /* bDescriptorType: CS_INTERFACE */
-            0x00, /* bDescriptorSubtype: Header Func Desc */
-            0x10, /* bcdCDC: spec release number */
-            0x01	
-        },
-        /*Call Management Functional Descriptor*/
-        {		    
-		    /*!<описывает процесс вызовов коммуникационного интерфейса.>*/
-            0x05, /* bFunctionLength */
-            0x24, /* bDescriptorType: CS_INTERFACE */
-            0x01, /* bDescriptorSubtype: Call Management Func Desc */
-            0x00, /* bmCapabilities: D0+D1 */
-            0x01 /* bDataInterface: 1  number of interfaces (two interfaces)*/
-	    },
-        /*ACM Functional Descriptor*/
-        {		
-            0x04, /* bFunctionLength */
-            0x24, /* bDescriptorType: CS_INTERFACE */
-            0x02, /* bDescriptorSubtype: Abstract Control Management desc */
-            0x02 /* bmCapabilities , битовая маска поддерживаемых команд*/
-		    /*! x:x:x [2]-SendBreak [1]-Set_Line_Coding, Set_Control_Line_State, Get_Line_Coding,
-		    Serial_State [0] - Set_Comm_Feature, Clear_Com_Feature, Get_Comm_Feature*/
-	    },
-        /*Union Functional Descriptor*/
-        {
-		    /*! Описывается отношение интерфейсов в группе. Один интерфейс Master, остальные Slave,
-		    Запросы и нотификации проходящие через главный интерфейс, применяются ко всей
-		    группе интерфейсов */		
-            0x05, /* bFunctionLength */
-            0x24, /* bDescriptorType: CS_INTERFACE */
-            0x06, /* bDescriptorSubtype: Union func desc */
-            0x00, /* bMasterInterface: Communication class interface */
-            0x01 /* bSlaveInterface0: Data Class Interface ...*/
-	    },
-        {
-		    /*Endpoint 2 IN Descriptor*/
-            0x07, /* bLength: Endpoint Descriptor size */
-            0x05, /* bDescriptorType: Endpoint */
-            0x82, /* bEndpointAddress IN2  8-IN 2-endpoint2*/
-            0x03, /* bmAttributes: Interrupt */
-            64, /* wMaxPacketSize LO: */
-            0x00, /* wMaxPacketSize HI: */
-            0x10, /* bInterval: */
-	    },
+			/*!<header descriptor>*/
+			{
+				0x05, /* bLength: Endpoint Descriptor size */
+				0x24, /* bDescriptorType: CS_INTERFACE */
+				0x00, /* bDescriptorSubtype: Header Func Desc */
+				0x10, /* bcdCDC: spec release number */
+				0x01	
+			},
+			/*Call Management Functional Descriptor*/
+			{		    
+				/*!<Дескриптор режима команд, описывает процесс вызовов коммуникационного интерфейса.>*/
+				0x05, /* bFunctionLength */
+				0x24, /* bDescriptorType: CS_INTERFACE */
+				0x01, /* bDescriptorSubtype: Call Management Func Desc */
+				0x00, /* bmCapabilities: D0+D1 устройство принимает и передает команды только через коммуникационный интерфейс*/
+				0x01 /* bDataInterface: 1  number of interfaces (two interfaces)*/
+			},
+			/*ACM Functional Descriptor*/
+			{		
+				0x04, /* bFunctionLength */
+				0x24, /* bDescriptorType: CS_INTERFACE */
+				0x02, /* bDescriptorSubtype: Abstract Control Management desc */
+				0x02 /* bmCapabilities , битовая маска поддерживаемых команд*/
+				/*! x:x:x [2]-SendBreak [1]-Set_Line_Coding, Set_Control_Line_State, Get_Line_Coding,
+				Serial_State [0] - Set_Comm_Feature, Clear_Com_Feature, Get_Comm_Feature*/
+			},
+			/*Union Functional Descriptor*/
+			{
+				/*! Описывается отношение интерфейсов в группе. Один интерфейс Master, остальные Slave,
+				Запросы и нотификации проходящие через главный интерфейс, применяются ко всей
+				группе интерфейсов */		
+				0x05, /* bFunctionLength */
+				0x24, /* bDescriptorType: CS_INTERFACE */
+				0x06, /* bDescriptorSubtype: Union func desc */
+				0x00, /* bMasterInterface: Communication class interface - master*/
+				0x01 /* bSlaveInterface0: Data Class Interface  - slave*/
+			},
+			{
+				/*Endpoint 2 IN Descriptor*/
+				0x07, /* bLength: Endpoint Descriptor size */
+				0x05, /* bDescriptorType: Endpoint */
+				0x82, /* bEndpointAddress IN2  8-IN 2-endpoint2*/
+				0x03, /* bmAttributes: Interrupt */
+				64, /* wMaxPacketSize LO: */
+				0x00, /* wMaxPacketSize HI: */
+				0x10, /* bInterval: */
+			},
         /*!<Data interface>*/
         {
-            /*Interface Descriptor */
+            /*Interface Descriptor slave interface*/
             0x09, /* bLength: Interface Descriptor size */
             0x04, /* bDescriptorType: Interface */
             0x01, /* bInterfaceNumber: Number of Interface */
@@ -119,26 +119,26 @@ constexpr uint8_t Device_Descriptor[18] =
             0x00, /* bInterfaceProtocol: No special */
             0x00 /* iInterface: */
         },
-        {
-            /*Endpoint 1 Descriptor*/
-            0x07, /* bLength: Endpoint Descriptor size */
-            0x05, /* bDescriptorType: Endpoint */
-            0x81, /* bEndpointAddress IN1  8-IN 1-endpoint1*/
-            0x02, /* bmAttributes: BULK */
-            64, /* wMaxPacketSize LO: */
-            0x00, /* wMaxPacketSize HI: */
-            0x00 /* bInterval: */
-        },
-        /*EP1_OUT_Descriptor[7]*/
-        {
-            0x07,   /*Endpoint descriptor length = 7 */
-            0x05,   /*Endpoint descriptor type */
-            0x01,   /*Endpoint address (0-OUT 1-endpoint1) */
-            0x02,   /*Interrupt endpoint type Interrupt 0x02 -BULK*/
-            64,
-            0x00,
-            0x00     /*Polling interval in milliseconds*/
-        }
+			{
+				/*Endpoint 1 Descriptor*/
+				0x07, /* bLength: Endpoint Descriptor size */
+				0x05, /* bDescriptorType: Endpoint */
+				0x81, /* bEndpointAddress IN1  8-IN 1-endpoint1*/
+				0x02, /* bmAttributes: BULK */
+				64, /* wMaxPacketSize LO: */
+				0x00, /* wMaxPacketSize HI: */
+				0x00 /* bInterval: */
+			},
+			/*EP1_OUT_Descriptor[7]*/
+			{
+				0x07,   /*Endpoint descriptor length = 7 */
+				0x05,   /*Endpoint descriptor type */
+				0x01,   /*Endpoint address (0-OUT 1-endpoint1) */
+				0x02,   /*Interrupt endpoint type Interrupt 0x02 -BULK*/
+				64,
+				0x00,
+				0x00     /*Polling interval in milliseconds*/
+			}
     };		
 //---------------------------------------------------------------------------------------------------	
       
@@ -239,20 +239,16 @@ constexpr uint8_t Device_Descriptor[18] =
     static constexpr uint8_t STD_GET_DESCRIPTOR = 0x06;
     static constexpr uint8_t STD_SET_DESCRIPTOR = 0x07;
     static constexpr uint8_t STD_GET_CONFIGURATION = 0x08;
-    static constexpr uint8_t STD_SET_CONFIGURATION = 0x09;
+	/*!<Драйвер в опреационной системе по окончанию энумерации посылает такой запрос>*/
+    static constexpr uint8_t STD_SET_CONFIGURATION = 0x09; //в Value задается конфигурация в младшем байте
     static constexpr uint8_t STD_GET_INTERFACE = 0xA;
     static constexpr uint8_t STD_SET_INTERFACE = 0x11;
     static constexpr uint8_t STD_SYNCH_FRAME = 0x12;
     /*! <mValue> */
     static constexpr uint16_t USB_DESC_TYPE_DEVICE = 0x0100;
     static constexpr uint16_t USB_DESC_TYPE_CONFIGURATION = 0x0200;
-    //static constexpr uint16_t USB_DESC_TYPE_STRING = 0x0300;
-    static constexpr uint16_t USB_DESC_TYPE_INTERFACE1 = 0x0400;
-	static constexpr uint16_t USB_DESC_TYPE_INTERFACE2 = 0x0401;
-    static constexpr uint16_t USB_DESC_TYPE_EP_DESCRIPTOR1 = 0x0500;
-	static constexpr uint16_t USB_DESC_TYPE_EP_DESCRIPTOR2 = 0x0501;
-    static constexpr uint16_t USB_DESC_TYPE_DEVICE_QUALIFIER = 0x0700;
-
+    //static constexpr uint16_t USB_DESC_TYPE_DEVICE_QUALIFIER = 0x0600;
+	/*<В запросах на передачу дескриптора Value содержит в старшем байте тип дескриптора, а в младшем индекс>*/
     static constexpr uint16_t USBD_IDX_LANGID_STR = 0x0300;
     static constexpr uint16_t USBD_strManufacturer = 0x0301;
     static constexpr uint16_t USBD_strProduct = 0x0302;
@@ -260,14 +256,14 @@ constexpr uint8_t Device_Descriptor[18] =
     static constexpr uint16_t USBD_IDX_CONFIG_STR = 0x0304;
 	
 	//<(bRequest<<8)|(bmRequestType)>
-	static constexpr uint16_t GET_LINE_CODING = 0xA121;
-	static constexpr uint16_t SET_LINE_CODING = 0x2120;
-	static constexpr uint16_t SET_CONTROL_LINE_STATE = 0x2122;
-	static constexpr uint16_t SEND_BREAK = 0x2123;
 	static constexpr uint16_t SEND_ENCAPSULATED_COMMAND = 0x2100;
-	static constexpr uint16_t GET_ENCAPSULATED_COMMAND = 0xA101;
+	static constexpr uint16_t GET_ENCAPSULATED_RESPONSE = 0xA101;
+	static constexpr uint16_t SET_LINE_CODING = 0x2120; //хост устанавливает параметры передачи данных
+	static constexpr uint16_t GET_LINE_CODING = 0xA121;	// хост узнает текущие настройки линии передачи
+	static constexpr uint16_t SET_CONTROL_LINE_STATE = 0x2122; // устанавливает состояние линии передачи (RTS[1] DTR[0])
+	static constexpr uint16_t SEND_BREAK = 0x2123; //замораживает передачу данных
 	
-	constexpr uint8_t line_coding[7]={0x00,0xC2,0x01,0x00,0,0,8}; //стоп бит, четность, размер посылки
+	constexpr uint8_t line_coding[7]={0x00,0xC2,0x01,0x00,0,0,8}; //uint32_t baudRate; стоп бит, четность, размер посылки
 	
 	
 #endif //USB_DESCRIPTORS_H

@@ -79,6 +79,7 @@ public:
 
 	bool addressFlag{false};
 	void SetAdr(uint16_t value);
+	void read_BULK_FIFO(uint8_t size);
 
     //uint8_t bmRequestType{0};
 	//uint8_t bRequest{0};
@@ -93,9 +94,9 @@ public:
     	uint16_t wValue=0;	   // (Коды Запросов дескрипторов)
     	uint16_t wIndex=0;	   //
     	uint16_t wLength=0;	   //
-    }USB_SETUP_req;
-	USB_SETUP_req uSetReq; //выделяем память под структуру
+    }USB_SETUP_req;	
 	#pragma pack(pop)
+	//USB_SETUP_req uSetReq; //выделяем память под структуру
 	/*! <накладываем на структуру объединение, чтобы обращаться к различным полям> */
 	typedef union
 	{
@@ -106,10 +107,16 @@ public:
         
 private:
 	//#pragma pack (push,1)
-    
+    uint8_t line_code[7]{0};
+	
     void usb_init();
     void fifo_init();  
 	void ep_1_2_init();  
+	void stall();
+	void usbControlPacketProcessed();
+	void cdc_set_line_coding();
+	void cdc_get_line_coding();
+	//void getConfiguration();
     void Set_CurrentConfiguration(uint16_t value);
     void WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen);
     uint16_t MIN(uint16_t len, uint16_t wLength);
@@ -233,16 +240,21 @@ extern "C" void OTG_FS_IRQHandler(void)
 			}
 			USB_OTG_IN(0)->DIEPINT = epint;
 		}
-		if( epnums & 0x0002) // если конечная точка 1
+		if( epnums & 0x0002) // если конечная точка 1 Bulk IN
 		{ //EP1 IEPINT
+			epint = USB_OTG_IN(1)->DIEPINT;  //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
+			epint &= USB_OTG_DEVICE->DIEPMSK;  // считываем разрешенные биты 
+			/*!<передаем данные в BULK точку (если данные есть в данном FIFO то они передадутся и сработает это прерывание)>*/
 		    USB_OTG_IN(1)->DIEPINT = epint;
 		}
-		if( epnums & 0x0004) // если конечная точка 2
+		if( epnums & 0x0004) // если конечная точка 2 INTERRUPT IN
 		{ //EP2 IEPINT
+			epint = USB_OTG_IN(2)->DIEPINT;  //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
+			epint &= USB_OTG_DEVICE->DIEPMSK;  // считываем разрешенные биты 
+			/*!<передаем запрошенные данные в INTERRUPT точку communication interface>*/
 		    USB_OTG_IN(2)->DIEPINT = epint;
 		}   
-		USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT; //IN EndPoints INTerrupt mask. Разрешаем прерывание конечных точек IN
-				
+		USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_IEPINT; //IN EndPoints INTerrupt mask. Разрешаем прерывание конечных точек IN				
 		return;
     }
 
@@ -278,14 +290,18 @@ extern "C" void OTG_FS_IRQHandler(void)
 		    }
 		    USB_OTG_OUT(0)->DOEPINT = epint; //записываем разрешенные биты
 		}
-		if( epnums & 0x00020000)		// конечная точка 1
+		if( epnums & 0x00020000)		// конечная точка 1 BULK_OUT
 		{ //EP1 OEPINT
+			epint = USB_OTG_OUT(1)->DOEPINT; //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
+		    epint &= USB_OTG_DEVICE->DOEPMSK;	 // считываем разрешенные биты 
+			/*!<разгребаем принятые данные в BULK точку>*/
+			//----------------------------------------------------------------------
 		    USB_OTG_OUT(1)->DOEPINT = epint;
 		}
-		if( epnums & 0x00040000)		// конечная точка 2
-		{ //EP2 OEPINT
-		    USB_OTG_OUT(2)->DOEPINT = epint;
-		}
+		//if( epnums & 0x00040000)		// конечная точка 2 нету
+		//{ //EP2 OEPINT
+		//    USB_OTG_OUT(2)->DOEPINT = epint;
+		//}
 		USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_OEPINT; //IN EndPoints INTerrupt mask. Разрешаем прерывание конечных точек IN
     return;
     }
@@ -297,11 +313,18 @@ extern "C" void OTG_FS_IRQHandler(void)
 		//USB_DEVICE::pThis->resetFlag++;
 		//uint8_t status = (USB_OTG_FS->GRXSTSR)>>17&0xF; // PacKeT STatuS приложение должно прочитать регистр выборки статуса приема (OTG_FS_GRXSTSP).
 		//чтение регистра GRXSTSP извлечет данные из Rx_FIFO (в FIFO останется только DATA пакет)
-		uint8_t status = ((USB_OTG_FS->GRXSTSP & USB_OTG_GRXSTSP_PKTSTS)>>17)&0xF; //то же самое		
+		uint8_t status = ((USB_OTG_FS->GRXSTSP & USB_OTG_GRXSTSP_PKTSTS)>>17)&0xF; //то же самое
+		uint8_t bytesSize=((USB_OTG_FS->GRXSTSP & USB_OTG_GRXSTSP_PKTSTS)>>4)&0xFF;//узнаем количество пришедших байт
 		switch (status) 
 		{
 			/*принят пакет данных OUT. */
-			case 2: USART_debug::usart2_sendSTR("OUT packet\n"); break;
+			case 2: 
+			USART_debug::usart2_sendSTR("OUT packet\n");
+			{
+				/*!<Пришел пакет для записи в конечную точку OUT>*/
+				USB_DEVICE::pThis->read_BULK_FIFO(bytesSize); //считываем из FIFO количество принятых байт (в очередь)
+			}
+			break;
 			/*принят пакет данных SETUP.*/
 			case 6: // SETUP packet recieve Эти данные показывают, что в RxFIFO сейчас доступен для чтения пакет SETUP указанной конечной точки.
 			{
