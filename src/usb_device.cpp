@@ -136,9 +136,8 @@ void USB_DEVICE::Enumerate_Setup(void)
          //... И так далее
       }
       break;
-    case SET_ADDRESS:  // Установка адреса устройства
-      //resetFlag=uSetReq.wValue;
-	  addressFlag = true;
+  case SET_ADDRESS:  // Установка адреса устройства
+    addressFlag = true;
     /*!< записываем пакет статуса нулевой длины >*/
     //WriteINEP(0x00,pbuf,MIN(len , uSetReq.wLength));
     break;
@@ -150,15 +149,19 @@ void USB_DEVICE::Enumerate_Setup(void)
 	break;
     case SET_CONFIGURATION: // Установка конфигурации устройства
 	/*<здесь производится конфигурация конечных точек в соответствии с принятой конфигурацией (она одна)>*/
-      Set_CurrentConfiguration((setupPack.setup.wValue>>4));
-	    ep_1_2_init(); //инициализируем конечные точки 1-прием, передача и 2-настройка    
+      //Set_CurrentConfiguration((setupPack.setup.wValue>>4)); //если несколько конфигураций необходима доп функция
+	  ep_1_2_init(); //инициализируем конечные точки 1-прием, передача и 2-настройка    
       USART_debug::usart2_sendSTR("SET_CONFIGURATION\n");
       break;       // len-0 -> ZLP
-	  
+	case SET_INTERFACE: // Установка конфигурации устройства
+	/*<здесь выбирается интерфейс (в данном случае не должен выбираться, т.к. разные конечные точки)>*/
+    USART_debug::usart2_sendSTR("SET_INTERFACE\n");
+    break;	  	  
 	/* CDC Specific requests */
-    case SET_LINE_CODING:
+    case SET_LINE_CODING: //устанавливает параметры линии передач
     USART_debug::usart2_sendSTR("SET_LINE_CODING\n");
-      cdc_set_line_coding();           
+	  setLineCodingFlag=true;	
+      //cdc_set_line_coding();           
       break;
     case GET_LINE_CODING:
     USART_debug::usart2_sendSTR("GET_LINE_CODING\n");
@@ -205,9 +208,9 @@ void USB_DEVICE::Set_CurrentConfiguration(uint16_t value)
 {
     CurrentConfiguration=value;
 }
+//-----------------------------------------------------------------------------------------
 void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
 {
-  /*!<TODO: реализовать запись через очередь>*/
   USB_OTG_IN(EPnum)->DIEPTSIZ =0;
   /*!<записать количество пакетов и размер посылки>*/
   uint8_t Pcnt = minLen/64 +1;  
@@ -217,6 +220,7 @@ void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
   USB_OTG_IN(EPnum)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA); //выставляем перед записью
   if(minLen) WriteFIFO(EPnum, buf, minLen); //если нет байтов передаем пустой пакет    
 }
+//---------------------------------------------------------------------------------------------------
 uint16_t USB_DEVICE::MIN(uint16_t len, uint16_t wLength)
 {
     uint16_t x=0;
@@ -253,19 +257,31 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_1;
   USB_OTG_IN(1)->DIEPCTL&=~USB_OTG_DIEPCTL_EPTYP_0; //1:0 - BULK
   USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_TXFNUM_0;//Tx_FIFO_1 0:0:0:1
+  USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_SD0PID; //data0
+  USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
+  
   USB_OTG_OUT(1)->DOEPCTL|=64;// 64 байта в пакете
   USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_EPTYP_1;
   USB_OTG_OUT(1)->DOEPCTL&=~USB_OTG_DOEPCTL_EPTYP_0; //1:0 - BULK 
+  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_SD0PID; //data0
+  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
   //------------------------------------------------------------------
   USB_OTG_IN(2)->DIEPCTL|=64;// 64 байта в пакете
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_1;
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_0; //1:1 - INTERRUPT
   USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_1;
   USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_0;//Tx_FIFO_2 0:0:1:0
+  USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_SD0PID; //data0
+  USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
 
-  USB_OTG_OUT(1)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 1:1 = 3
-	  // XFRSIZE = 64 - размер транзакции в байтах
-	USB_OTG_OUT(1)->DOEPTSIZ |= 64;//0x40 
+  //USB_OTG_OUT(1)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 1:1 = 3	  
+  //USB_OTG_OUT(1)->DOEPTSIZ |= 64;//0x40 
+  //!Демаскировать прерывание для каждой активной конечной точки, и замаскировать прерывания для всех не активных конечных точек в регистре OTG_FS_DAINTMSK.
+  USB_OTG_DEVICE->DAINTMSK|=(3<<1)|(1<<17); //включаем прерывания на конечных точках 1-IN 2-IN 1-OUT 
+  // разрешаем прием пакета OUT на INTERRUPT точку (для команд системе - не используется)
+  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_CNAK|USB_OTG_DOEPCTL_EPENA; //разрешаем конечную точку OUT
+  //USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_CNAK|USB_OTG_DIEPCTL_EPENA;
+  //USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_CNAK|USB_OTG_DIEPCTL_EPENA;
 //-------------------------------------------------------
 /*< Заполняем массив line_code>*/	
 	for(uint8_t i=0;i<7;i++){line_code[i] = line_coding[i];}
@@ -274,16 +290,21 @@ void USB_DEVICE::ep_1_2_init()
 void USB_DEVICE::stall()
 {
 	/*TODO: send STALL signal*/
+	USB_OTG_IN(0)->DIEPCTL|=USB_OTG_DIEPCTL_STALL;
 }
 
-void USB_DEVICE::cdc_set_line_coding()
+void USB_DEVICE::cdc_set_line_coding(uint8_t size)
 {
+	//необходимо вычитывать из OUT пакета
 	uint8_t lineC[8];	
+  USART_debug::usart2_send(size);
 	*(uint32_t*)(lineC) = USB_OTG_DFIFO(0);
 	*((uint32_t*)(lineC)+1) = USB_OTG_DFIFO(0); //заполнили структуру
+  //for (uint8_t i=0;i<((size+3)>>4);i++)
+  //{*((uint32_t*)(lineC)+i) = USB_OTG_DFIFO(0);} //заполняем массив
 	for(uint8_t i=0;i<7;i++)
 	{line_code[i] = *((uint8_t*)(&lineC)+i);} //это если из FIFO читается подряд (если нет надо по другому)		
-  USART_debug::usart2_sendSTR("line_code \n");
+	USART_debug::usart2_sendSTR("line_code \n");
 }
 void USB_DEVICE::cdc_get_line_coding()
 {
@@ -292,14 +313,7 @@ void USB_DEVICE::cdc_get_line_coding()
 	WriteINEP(0,buf,7);
 }
 
-void USB_DEVICE::read_BULK_FIFO(uint8_t size)
-{
-	//uint8_t cnt = USB_OTG_OUT(1)->DOEPTSIZ & USB_OTG_DOEPTSIZ_PKTCNT; //считываем количество принятых пакетов (должен быть один)
-	//uint8_t size = USB_OTG_OUT(1)->DOEPTSIZ & USB_OTG_DOEPTSIZ_XFRSIZ;
-	
-}
-
-void USB_DEVICE::cdc_set_control_line_state()
+void USB_DEVICE::cdc_set_control_line_state() //rts, dtr (не используем пока)
 {}
 void USB_DEVICE::cdc_send_break()
 {}
@@ -307,3 +321,22 @@ void USB_DEVICE::cdc_send_encapsulated_command()
 {}
 void USB_DEVICE::cdc_get_encapsulated_command()
 {}
+
+void USB_DEVICE::read_BULK_FIFO(uint8_t size)
+{
+	uint8_t size_on_for = (size+3)>>2;//делим на 4
+	uint32_t buf[16];
+	uint8_t ostatok = size%4;
+/*!<Засовываем в очередь>*/
+		
+	for (uint8_t i=0;i<size_on_for;i++)
+	{
+		buf[i]=USB_OTG_DFIFO(1);
+		if(i != size_on_for - 1) //запихиваем по 4 байта
+		{
+			for(uint8_t j=0;j<4;j++){qBulk_OUT.push(*((uint8_t*)(buf+i)+j));}
+		}
+		/*запихиваем оставшуюся часть*/
+		else(){for(uint8_t j=0;j<ostatok;j++){qBulk_OUT.push(*((uint8_t*)(buf+i)+j));}}		
+	}	
+}

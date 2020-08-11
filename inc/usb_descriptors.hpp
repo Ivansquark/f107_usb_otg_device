@@ -149,13 +149,8 @@ constexpr uint8_t Device_Descriptor[18] =
         /* Index 0x00: LANGID Codes */
         0x04,   /*descriptor length = 7 */
         0x03,   /*STRING descriptor type */
-        0x04,	/*LANG_US uint16_t*/
-		0x09
-        //,   
-        //0x04,	/*LANG_US uint16_t*/
-		//0x09,   
-        //0x04,	/*LANG_US uint16_t*/
-		//0x09
+        0x09,	/*LANG_US uint16_t*/
+		0x04      /*! !!! все что больше байта необходимо переворачивать*/  
     };   
 	constexpr uint8_t Man_String[13]
 	{
@@ -256,14 +251,14 @@ constexpr uint8_t Device_Descriptor[18] =
     static constexpr uint16_t USBD_IDX_CONFIG_STR = 0x0304;
 	
 	//<(bRequest<<8)|(bmRequestType)>
-	static constexpr uint16_t SEND_ENCAPSULATED_COMMAND = 0x2100;
-	static constexpr uint16_t GET_ENCAPSULATED_RESPONSE = 0xA101;
+	static constexpr uint16_t SEND_ENCAPSULATED_COMMAND = 0x2100; //посылка команды
+	static constexpr uint16_t GET_ENCAPSULATED_RESPONSE = 0xA101; // прием команды
 	static constexpr uint16_t SET_LINE_CODING = 0x2120; //хост устанавливает параметры передачи данных
 	static constexpr uint16_t GET_LINE_CODING = 0xA121;	// хост узнает текущие настройки линии передачи
 	static constexpr uint16_t SET_CONTROL_LINE_STATE = 0x2122; // устанавливает состояние линии передачи (RTS[1] DTR[0])
 	static constexpr uint16_t SEND_BREAK = 0x2123; //замораживает передачу данных
 	
-	constexpr uint8_t line_coding[7]={0x00,0xC2,0x01,0x00,0,0,8}; //uint32_t baudRate; стоп бит, четность, размер посылки
+	constexpr uint8_t line_coding[7]={0x00,0xC2,0x01,0x00,0x00,0x00,0x08}; //uint32_t baudRate 115200; стоп бит, четность, размер посылки
 	
 	
 #endif //USB_DESCRIPTORS_H

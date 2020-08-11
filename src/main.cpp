@@ -6,9 +6,10 @@
 void *__dso_handle = nullptr; // dummy "guard" that is used to identify dynamic shared objects during global destruction. (in fini in startup.cpp)
 
 int main()
-{	
-	QueWord que;
+{		
+	QueByte qBulk_OUT;
     RCCini rcc;	//! 72 MHz
+	Timers tim4_1sec(4);
 	//LED13 led;
 	//__enable_irq();
 	//RCC->APB2ENR|=RCC_APB2ENR_IOPEEN;
@@ -21,11 +22,24 @@ int main()
 	__enable_irq();
 	USB_DEVICE usb;
 	USART_debug usart2(2);
+	uint8_t arr[8]={0,1,2,3,4,5,6,7};
+	uint8_t count;
 	__enable_irq();
 	while(1)
 	{		
-		//font16.intToChar(usb.resetFlag);
-		//font16.print(10,10,0x00ff,font16.arr,2);
+		if(Timers::timerSecFlag)
+		{
+			uint8_t i=0;
+			usb.WriteINEP(1,&arr,i);
+			i++; if(i==7){i=0;}
+			Timers::timerSecFlag=false;
+		}
+		if(qBulk_OUT.is_not_empty)
+		{
+			count = qBulk_OUT.pop(); //считываем из очереди
+		}
+		font16.intToChar(count);
+		font16.print(10,10,0x00ff,font16.arr,2);
 		//
 		//font16.intToChar(usb.counter);
 		//font16.print(100,10,0x00ff,font16.arr,2);
