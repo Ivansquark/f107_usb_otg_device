@@ -31,10 +31,10 @@ int main()
 	{		
 		if(Timers::timerSecFlag)
 		{
+			i++;
 			if(i==0x39){i=0x30;}
-			arr[5]=i++;
-			usb.WriteINEP(0x01,arr,8);			
-			i++; if(i==7){i=0;}
+			arr[5]=i;
+			usb.WriteINEP(0x01,arr,8);						
 			Timers::timerSecFlag=false;
 		}
 		if(usb.qBulk_OUT.is_not_empty())
