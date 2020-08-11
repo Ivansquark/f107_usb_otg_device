@@ -300,6 +300,7 @@ void USB_DEVICE::cdc_set_line_coding(uint8_t size)
   USART_debug::usart2_send(size);
 	*(uint32_t*)(lineC) = USB_OTG_DFIFO(0);
 	*((uint32_t*)(lineC)+1) = USB_OTG_DFIFO(0); //заполнили структуру
+  uint32_t dummy = USB_OTG_DFIFO(0);
   //for (uint8_t i=0;i<((size+3)>>4);i++)
   //{*((uint32_t*)(lineC)+i) = USB_OTG_DFIFO(0);} //заполняем массив
 	for(uint8_t i=0;i<7;i++)

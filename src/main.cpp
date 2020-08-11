@@ -22,16 +22,18 @@ int main()
 	__enable_irq();
 	USB_DEVICE usb;
 	USART_debug usart2(2);
-	uint8_t arr[8]={0,1,2,3,4,5,6,7};
+	uint8_t arr[8]={'U','S','B','-',0x30,0x30,'\t','\n'};
 	uint8_t count;
 	__enable_irq();
 	for(uint32_t i=0;i<10000000;i++){}
+	uint8_t i=0x30;
 	while(1)
 	{		
 		if(Timers::timerSecFlag)
 		{
-			uint8_t i=0;
-			usb.WriteINEP(1,arr,i);
+			if(i==0x39){i=0x30;}
+			arr[5]=i++;
+			usb.WriteINEP(0x01,arr,8);			
 			i++; if(i==7){i=0;}
 			Timers::timerSecFlag=false;
 		}

@@ -205,6 +205,12 @@ extern "C" void OTG_FS_IRQHandler(void)
 			epint = USB_OTG_IN(1)->DIEPINT;  //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
 			epint &= USB_OTG_DEVICE->DIEPMSK;  // считываем разрешенные биты 
 			/*!<передаем данные в BULK точку (если данные есть в данном FIFO то они передадутся и сработает это прерывание)>*/
+			if(epint & USB_OTG_DIEPINT_XFRC)
+			{USART_debug::usart2_sendSTR("Bulk IN XFRC\n");}
+			if(epint & USB_OTG_DIEPINT_TXFE) //Transmit FIFO Empty.
+			{
+				USART_debug::usart2_sendSTR("Bulk IN USB_OTG_DIEPINT_TXFE\n");
+			}
 			USB_OTG_IN(1)->DIEPINT = epint;
 		}
 		if( epnums & 0x0004) // если конечная точка 2 INTERRUPT IN
@@ -256,10 +262,11 @@ extern "C" void OTG_FS_IRQHandler(void)
 		}
 		if( epnums & 0x00020000)		// конечная точка 1 BULK_OUT
 		{ //EP1 OEPINT
+			USART_debug::usart2_sendSTR("BULK_OUT\n");	
 			epint = USB_OTG_OUT(1)->DOEPINT;  //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
 		    epint &= USB_OTG_DEVICE->DOEPMSK; // считываем разрешенные биты 
 			/*!<разгребаем принятые данные в BULK точку>*/
-			uint8_t size = (USB_OTG_OUT(1)->DOEPTSIZ) & 0xFF; //количество принятых байтов (BULK передачи идут по одному пакету)
+			uint8_t size = 0;// ((USB_OTG_FS->GRXSTSP & USB_OTG_GRXSTSP_BCNT)>>4) & 0xFF; //количество принятых байтов (BULK передачи идут по одному пакету)
 			/*!<необходимо записать принятые байты в память (в буфер очереди)>*/
 			USB_DEVICE::pThis->read_BULK_FIFO(size); //вычитываем из FIFO количество байт size
 			//----------------------------------------------------------------------
