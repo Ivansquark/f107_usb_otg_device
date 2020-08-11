@@ -48,7 +48,7 @@ struct QueWord
     }    
     uint32_t* start{nullptr};
     uint32_t count{0};
-    static constexpr uint32_t size=10; //size of queue
+    static constexpr uint32_t size=128; //size of queue
     uint32_t arr[size]{0};
 	static QueWord* pThis;
 };
@@ -100,7 +100,7 @@ struct QueByte
     }    
     uint32_t* start{nullptr};
     uint32_t count{0};
-    static constexpr uint32_t size=10; //size of queue
+    static constexpr uint32_t size=128; //size of queue
     uint32_t arr[size]{0};
 	static QueByte* pThis;
 };

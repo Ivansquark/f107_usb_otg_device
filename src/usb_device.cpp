@@ -213,7 +213,7 @@ void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
 {
   USB_OTG_IN(EPnum)->DIEPTSIZ =0;
   /*!<записать количество пакетов и размер посылки>*/
-  uint8_t Pcnt = minLen/64 +1;  
+  uint8_t Pcnt = minLen/64 + 1;  
   USB_OTG_IN(EPnum)->DIEPTSIZ |= (Pcnt<<19);
   USB_OTG_IN(EPnum)->DIEPTSIZ |= minLen;
    /*!<количество передаваемых пакетов (по прерыванию USB_OTG_DIEPINT_XFRC передается один пакет)>*/
@@ -235,7 +235,7 @@ void USB_DEVICE::WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len)
         /*!<закидываем в fifo 32-битные слова>*/
         USB_OTG_DFIFO(fifo_num) = *((__packed uint32_t *)src);                
     }
-    USART_debug::usart2_sendSTR("WRITE in EP0\n");    
+    //USART_debug::usart2_sendSTR("WRITE in EP0\n");    
 }
 
 void USB_DEVICE::ReadSetupFIFO(void)
@@ -257,13 +257,13 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_1;
   USB_OTG_IN(1)->DIEPCTL&=~USB_OTG_DIEPCTL_EPTYP_0; //1:0 - BULK
   USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_TXFNUM_0;//Tx_FIFO_1 0:0:0:1
-  USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_SD0PID; //data0
+  USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
   USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
   
   USB_OTG_OUT(1)->DOEPCTL|=64;// 64 байта в пакете
   USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_EPTYP_1;
   USB_OTG_OUT(1)->DOEPCTL&=~USB_OTG_DOEPCTL_EPTYP_0; //1:0 - BULK 
-  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_SD0PID; //data0
+  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
   USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
   //------------------------------------------------------------------
   USB_OTG_IN(2)->DIEPCTL|=64;// 64 байта в пакете
@@ -271,7 +271,7 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_0; //1:1 - INTERRUPT
   USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_1;
   USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_0;//Tx_FIFO_2 0:0:1:0
-  USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_SD0PID; //data0
+  USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
 
   //USB_OTG_OUT(1)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 1:1 = 3	  
@@ -337,6 +337,6 @@ void USB_DEVICE::read_BULK_FIFO(uint8_t size)
 			for(uint8_t j=0;j<4;j++){qBulk_OUT.push(*((uint8_t*)(buf+i)+j));}
 		}
 		/*запихиваем оставшуюся часть*/
-		else(){for(uint8_t j=0;j<ostatok;j++){qBulk_OUT.push(*((uint8_t*)(buf+i)+j));}}		
+		else{for(uint8_t j=0;j<ostatok;j++){qBulk_OUT.push(*((uint8_t*)(buf+i)+j));}}		
 	}	
 }

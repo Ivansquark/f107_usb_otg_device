@@ -16,6 +16,8 @@ class USB_DEVICE
 public: 
     USB_DEVICE();    
     static USB_DEVICE* pThis;
+	QueByte qBulk_OUT;
+
 	void ReadSetupFIFO(void);
     void Enumerate_Setup();
 	uint32_t counter{0};
@@ -27,6 +29,8 @@ public:
 	bool setLineCodingFlag{false};
 	void SetAdr(uint16_t value);
 	void read_BULK_FIFO(uint8_t size);
+	void WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen);
+	void cdc_set_line_coding(uint8_t size);
 	
 	uint8_t BULK_BUF[64]{0};
     //uint8_t bmRequestType{0};
@@ -67,7 +71,7 @@ private:
 	void ep_1_2_init();  
 	inline void stall();
 	void usbControlPacketProcessed();
-	void cdc_set_line_coding(uint8_t size);
+	
 	void cdc_get_line_coding();
 	void cdc_set_control_line_state();
 	void cdc_send_break();
@@ -75,7 +79,7 @@ private:
 	void cdc_get_encapsulated_command();
 	//void getConfiguration();
     void Set_CurrentConfiguration(uint16_t value);
-    void WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen);
+    
     uint16_t MIN(uint16_t len, uint16_t wLength);
     void WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len);    
 };
@@ -153,12 +157,12 @@ extern "C" void OTG_FS_IRQHandler(void)
 			epint &= USB_OTG_DEVICE->DIEPMSK;  // считываем разрешенные биты 
 			if(epint & USB_OTG_DIEPINT_XFRC) // если Transfer Completed interrupt. Показывает, что транзакция завершена как на AHB, так и на USB.
 			{				
-				USART_debug::usart2_sendSTR("In XFRC\n");
+				//USART_debug::usart2_sendSTR("In XFRC\n");
 				
                 /*!< (TODO: реализовать очередь в которую сначала закидываем побайтово буффер с дескриптором) >*/                
 				if(USB_OTG_IN(0)->DIEPTSIZ & USB_OTG_DIEPTSIZ_PKTCNT)//QueWord::pThis->is_not_empty()/*usb.Get_TX_Q_cnt(0)*/)	 			
 				{
-					USART_debug::usart2_sendSTR("In XFRC PKTCNT \n");
+					//USART_debug::usart2_sendSTR("In XFRC PKTCNT \n");
 					//USB_DEVICE::pThis->WriteFIFO(0, buf, minLen);
 					//USB_OTG_DFIFO(0) = QueWord::pThis->pop(); //!< записываем в FIFO значения из очереди //Отправить ещё кусочек
 				}
@@ -191,7 +195,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 			//когда TxFIFO для этой конечной точки пуст либо наполовину, либо полностью.
 			if(epint & USB_OTG_DIEPINT_TXFE) //Transmit FIFO Empty.
 			{
-				USART_debug::usart2_sendSTR("USB_OTG_DIEPINT_ITTXFE\n");
+				USART_debug::usart2_sendSTR("USB_OTG_DIEPINT_TXFE\n");
 			}
 			USB_OTG_IN(0)->DIEPINT = epint;
 		}
@@ -231,7 +235,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 		    if(epint & USB_OTG_DOEPINT_XFRC)
 		    {// в момент SETUP приходят данные 
 				//USART_debug::usart2_sendSTR("Out XFRC\n");
-				WriteINEP(0,nullptr,0); //ZLP в пакете статуса ответа !!!ХЗ
+				//USB_DEVICE::pThis->WriteINEP(0,nullptr,0); //ZLP в пакете статуса ответа !!!ХЗ
 		    }
 		    //SETUP phase done. На этом прерывании приложение может декодировать принятый пакет данных SETUP.
 		    if(epint & USB_OTG_DOEPINT_STUP) // Показывает, что фаза SETUP завершена (пришел пакет)
@@ -255,9 +259,9 @@ extern "C" void OTG_FS_IRQHandler(void)
 			epint = USB_OTG_OUT(1)->DOEPINT;  //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
 		    epint &= USB_OTG_DEVICE->DOEPMSK; // считываем разрешенные биты 
 			/*!<разгребаем принятые данные в BULK точку>*/
-			uint8_t size = (USB_OTG_OUT(1)->DOEPSIZ) & 0xFF; //количество принятых байтов (BULK передачи идут по одному пакету)
+			uint8_t size = (USB_OTG_OUT(1)->DOEPTSIZ) & 0xFF; //количество принятых байтов (BULK передачи идут по одному пакету)
 			/*!<необходимо записать принятые байты в память (в буфер очереди)>*/
-			read_BULK_FIFO(size); //вычитываем из FIFO количество байт size
+			USB_DEVICE::pThis->read_BULK_FIFO(size); //вычитываем из FIFO количество байт size
 			//----------------------------------------------------------------------
 		    USB_OTG_OUT(1)->DOEPINT = epint; //сбрасываем маскированные прерывания
 		}
@@ -286,6 +290,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 				/*!<Пришел control пакет для записи в конечную точку OUT>*/
 				if(USB_DEVICE::pThis->setLineCodingFlag)
 				{
+					USART_debug::usart2_sendSTR("OUT completed\n");
 					uint8_t size = USB_OTG_OUT(0)->DOEPTSIZ & 0xFF;
 					USB_DEVICE::pThis->cdc_set_line_coding(size);USB_DEVICE::pThis->setLineCodingFlag=false;
 				} //читаем пакет setLineCoding (из 8 байт)
@@ -299,11 +304,11 @@ extern "C" void OTG_FS_IRQHandler(void)
 				{	
 					//USART_debug::usart2_sendSTR("readFIFO\n");						
 					USB_DEVICE::pThis->ReadSetupFIFO();	
-					//uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его. (автоматически)					
+					uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его. (автоматически)					
 				}				
 			} break;
 			case 0x03: 
-				USART_debug::usart2_sendSTR("OUT completed\n"); /* OUT completed */		
+				//USART_debug::usart2_sendSTR("OUT completed\n"); /* OUT completed */		
 				//USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);	
 			break;
             case 0x04:  /* SETUP completed завершена транзакция SETUP (срабатывает прерывание). выставляется ACK*/
