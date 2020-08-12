@@ -6,29 +6,27 @@ USB_DEVICE::USB_DEVICE()
 
 void USB_DEVICE::usb_init()
     {
-        //! инициализация переферии PA11-DM PA12-DP
+        //! -------- инициализация переферии PA11-DM PA12-DP PA9-VBusSens --------------------
         RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
         GPIOA->CRH &=~ (GPIO_CRH_CNF11_0 | GPIO_CRH_CNF12_0 );
-        GPIOA->CRH |= (GPIO_CRH_CNF11_1 | GPIO_CRH_CNF12_1 )|(GPIO_CRH_MODE11 | GPIO_CRH_MODE12 ); //! 1:0 - alternative function push-pull 1:1 full speed
+        GPIOA->CRH |= (GPIO_CRH_CNF11_1 | GPIO_CRH_CNF12_1 )|(GPIO_CRH_MODE11 | GPIO_CRH_MODE12 ); // 1:0 - alternative function push-pull 1:1 full speed
         GPIOA->CRH &=~ (GPIO_CRH_CNF9_1);
         GPIOA->CRH |= (GPIO_CRH_CNF9_0 ); // 0:1 input mode (reset state)
         GPIOA->CRH &=~ (GPIO_CRH_MODE9);
-        //! тактирование USB
+        //! --------- тактирование USB --------------------------------------------------------------------
         RCC->CFGR &=~ RCC_CFGR_OTGFSPRE; //! 0 - psk=3; (72*2/3 = 48 MHz)
         RCC->AHBENR|=RCC_AHBENR_OTGFSEN; //USB OTG clock enable
         // core        
         USB_OTG_FS->GAHBCFG|=USB_OTG_GAHBCFG_GINT; // globalk interrupt mask 1: отмена маскирования прерываний для приложения.
         USB_OTG_FS->GAHBCFG|=USB_OTG_GAHBCFG_TXFELVL; //1: прерывание бита TXFE (находится в регистре OTG_FS_DIEPINTx) показывает, что IN Endpoint TxFIFO полностью пуст.
         USB_OTG_FS->GAHBCFG|=USB_OTG_GAHBCFG_PTXFELVL; //1: прерывание бита NPTXFE (находится в регистре OTG_FS_GINTSTS) показывает, что непериодический TxFIFO полностью пуст.
-        //USB_OTG_FS->GUSBCFG|=USB_OTG_GUSBCFG_HNPCAP; // HNP Бит разрешения функции смены ролей хост-устройство (HNP capable bit).
         //USB_OTG_FS->GUSBCFG|=USB_OTG_GUSBCFG_SRPCAP; // SRP Бит разрешения управления питанием порта USB (SRP capable bit).
-         // FS timeout calibration Приложение должно запрограммировать это поле 
-         //на основе скорости энумерации.
+        // FS timeout calibration Приложение должно запрограммировать это поле на основе скорости энумерации.
         USB_OTG_FS->GUSBCFG|=USB_OTG_GUSBCFG_TOCAL_2|USB_OTG_GUSBCFG_TOCAL_0;
-        USB_OTG_FS->GUSBCFG &=~ USB_OTG_GUSBCFG_TOCAL_1;
+        USB_OTG_FS->GUSBCFG &=~ USB_OTG_GUSBCFG_TOCAL_1; //1:0:1
         // USB turnaround time Диапазон частот AHB	TRDT 32	-	0x6
         USB_OTG_FS->GUSBCFG |= (USB_OTG_GUSBCFG_TRDT_2|USB_OTG_GUSBCFG_TRDT_1);
-        USB_OTG_FS->GUSBCFG &=~ (USB_OTG_GUSBCFG_TRDT_3|USB_OTG_GUSBCFG_TRDT_0); 
+        USB_OTG_FS->GUSBCFG &=~ (USB_OTG_GUSBCFG_TRDT_3|USB_OTG_GUSBCFG_TRDT_0); //0:1:1:0 = 6
         //USB_OTG_FS->GINTMSK|=USB_OTG_GINTMSK_OTGINT; // unmask OTG interrupt OTG INTerrupt mask.         
         //USB_OTG_FS->GINTMSK|=USB_OTG_GINTMSK_MMISM; //прерывания ошибочного доступа 
         // device
@@ -37,14 +35,14 @@ void USB_DEVICE::usb_init()
         // ~ non-zero-length status OUT handshake
         USB_OTG_FS->GINTMSK |= USB_OTG_GINTMSK_USBRST | USB_OTG_GINTMSK_ENUMDNEM; // unmusk USB reset interrupt Сброс по шине // unmask enumeration done interrupt
         //USB_OTG_FS->GINTMSK |= USB_OTG_GINTMSK_ESUSPM; // unmask early suspend interrupt //USB_OTG_FS->GINTMSK |= USB_OTG_GINTMSK_USBSUSPM; // unmask USB suspend interrupt         //USB_OTG_FS->GINTMSK |= USB_OTG_GINTMSK_SOFM; // unmask SOF interrupt
-        USB_OTG_DEVICE->DCTL = USB_OTG_DCTL_SDIS;  //Отключиться
+        //---------------------------------------------------------------------------
+		USB_OTG_DEVICE->DCTL = USB_OTG_DCTL_SDIS;  //Отключиться
         USB_OTG_FS->GUSBCFG|=USB_OTG_GUSBCFG_FDMOD;//force device mode
         for(uint32_t i=0; i<1800000;i++){}//wait 25 ms
 		//включаем подтягивающий резистор DP вернее сенсор VbusB по которому включится резистор при наличии 5 В на Vbus
         USB_OTG_FS->GCCFG |= USB_OTG_GCCFG_VBUSBSEN | USB_OTG_GCCFG_PWRDWN; 
-        //USB_OTG_FS->GINTSTS |= USB_OTG_GINTSTS_ENUMDNE; // сбрасываем бит  
-		USB_OTG_FS->GINTSTS=0xFFFFFFFF; //rc_w1 read_and_clear_write_1 очистить регистр статуса		
-        NVIC_SetPriority(OTG_FS_IRQn,1);
+        USB_OTG_FS->GINTSTS=0xFFFFFFFF; //rc_w1 read_and_clear_write_1 очистить регистр статуса		
+        NVIC_SetPriority(OTG_FS_IRQn,1); //приоритет 1
         NVIC_EnableIRQ(OTG_FS_IRQn);
         USB_OTG_DEVICE->DCTL &= ~USB_OTG_DCTL_SDIS;   //Подключить USB         
 }
@@ -59,8 +57,8 @@ void USB_DEVICE::fifo_init()
 	  USB_OTG_FS->DIEPTXF[0] = (TX_EP1_FIFO_SIZE<<16) | (RX_FIFO_SIZE+TX_EP0_FIFO_SIZE);  //!размер и адрес Tx_FIFO  для EP1
 	  USB_OTG_FS->DIEPTXF[1] = (TX_EP2_FIFO_SIZE<<16) | (RX_FIFO_SIZE+TX_EP0_FIFO_SIZE+TX_EP1_FIFO_SIZE); //!размер и адрес Tx_FIFO  для EP2
 	  USB_OTG_FS->DIEPTXF[2] = (TX_EP3_FIFO_SIZE<<16) | (RX_FIFO_SIZE+TX_EP0_FIFO_SIZE+TX_EP1_FIFO_SIZE+TX_EP2_FIFO_SIZE); //! размер и адрес Tx_FIFO  для EP3
-	  // 3 пакета SETUP, CNT=1, endpoint 0 OUT transfer size register
-	  USB_OTG_OUT(0)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 1:1 = 3
+	  // 1 пакета SETUP, CNT=1, endpoint 0 OUT transfer size register
+	  USB_OTG_OUT(0)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT_0 | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 0:1 = 1
 	  // XFRSIZE = 64 - размер транзакции в байтах
 	  USB_OTG_OUT(0)->DOEPTSIZ |= 64;//0x40
 }
@@ -263,7 +261,7 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_OUT(1)->DOEPCTL|=64;// 64 байта в пакете
   USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_EPTYP_1;
   USB_OTG_OUT(1)->DOEPCTL&=~USB_OTG_DOEPCTL_EPTYP_0; //1:0 - BULK 
-  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
+  //USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
   USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
   //------------------------------------------------------------------
   USB_OTG_IN(2)->DIEPCTL|=64;// 64 байта в пакете
@@ -273,15 +271,18 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_0;//Tx_FIFO_2 0:0:1:0
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
-
-  //USB_OTG_OUT(1)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 1:1 = 3	  
-  //USB_OTG_OUT(1)->DOEPTSIZ |= 64;//0x40 
+	  
   //!Демаскировать прерывание для каждой активной конечной точки, и замаскировать прерывания для всех не активных конечных точек в регистре OTG_FS_DAINTMSK.
   USB_OTG_DEVICE->DAINTMSK|=(3<<1)|(1<<17); //включаем прерывания на конечных точках 1-IN 2-IN 1-OUT 
-  // разрешаем прием пакета OUT на INTERRUPT точку (для команд системе - не используется)
+  
+  /*!<задаем максимальный размер пакета 
+	  и количество пакетов конечной точки BULK_OUT
+	  (непонятно как может быть больше одного пакета), 
+	  которое может принять Rx_FIFO>*/
+  USB_OTG_OUT(1)->DOEPTSIZ = 0;
+  USB_OTG_OUT(1)->DOEPTSIZ |= (1<<19)|(64<<0) ; //PKNT = 1 (DATA), макс размер пакета 64 байта	  
+  // разрешаем прием пакета OUT на BULK точку 
   USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_CNAK|USB_OTG_DOEPCTL_EPENA; //разрешаем конечную точку OUT
-  //USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_CNAK|USB_OTG_DIEPCTL_EPENA;
-  //USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_CNAK|USB_OTG_DIEPCTL_EPENA;
 //-------------------------------------------------------
 /*< Заполняем массив line_code>*/	
 	for(uint8_t i=0;i<7;i++){line_code[i] = line_coding[i];}
@@ -297,12 +298,12 @@ void USB_DEVICE::cdc_set_line_coding(uint8_t size)
 {
 	//необходимо вычитывать из OUT пакета
 	uint8_t lineC[8];	
-  USART_debug::usart2_send(size);
+	USART_debug::usart2_send(size);
 	*(uint32_t*)(lineC) = USB_OTG_DFIFO(0);
 	*((uint32_t*)(lineC)+1) = USB_OTG_DFIFO(0); //заполнили структуру
-  uint32_t dummy = USB_OTG_DFIFO(0);
-  //for (uint8_t i=0;i<((size+3)>>4);i++)
-  //{*((uint32_t*)(lineC)+i) = USB_OTG_DFIFO(0);} //заполняем массив
+	uint32_t dummy = USB_OTG_DFIFO(0); //считали инфу чтобы очистить Rx_FIFO только для SETUP
+	//for (uint8_t i=0;i<((size+3)>>4);i++)
+	//{*((uint32_t*)(lineC)+i) = USB_OTG_DFIFO(0);} //заполняем массив
 	for(uint8_t i=0;i<7;i++)
 	{line_code[i] = *((uint8_t*)(&lineC)+i);} //это если из FIFO читается подряд (если нет надо по другому)		
 	USART_debug::usart2_sendSTR("line_code \n");
@@ -326,18 +327,23 @@ void USB_DEVICE::cdc_get_encapsulated_command()
 void USB_DEVICE::read_BULK_FIFO(uint8_t size)
 {
 	uint8_t size_on_for = (size+3)>>2;//делим на 4
-	uint32_t buf[16];
+	uint32_t buf[16]; //выделяем промежуточный буфер на 64 байта
 	uint8_t ostatok = size%4;
-/*!<Засовываем в очередь>*/
-		
+/*!<Засовываем в очередь>*/		
 	for (uint8_t i=0;i<size_on_for;i++)
 	{
-		buf[i]=USB_OTG_DFIFO(1);
+		buf[i]=USB_OTG_DFIFO(1); //вычитываем из Rx_FIFO
 		if(i != size_on_for - 1) //запихиваем по 4 байта
 		{
 			for(uint8_t j=0;j<4;j++){qBulk_OUT.push(*((uint8_t*)(buf+i)+j));}
 		}
 		/*запихиваем оставшуюся часть*/
-		else{for(uint8_t j=0;j<ostatok;j++){qBulk_OUT.push(*((uint8_t*)(buf+i)+j));}}		
+		else
+		{
+			for(uint8_t j=0;j<ostatok;j++)
+			{
+				qBulk_OUT.push(*((uint8_t*)(buf+i)+j));
+			}
+		}		
 	}	
 }
