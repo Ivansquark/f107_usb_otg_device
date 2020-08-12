@@ -103,9 +103,9 @@ private:
                 USART2->CR1|=USART_CR1_RE; // Recieving enabled
                 USART2->CR1|=USART_CR1_RXNEIE; //enable interrupt on Rx from usart1
                 //USART2->BRR=0x445C; //2400 (APB1CLK - baudrate/2)/baudrate
-                USART2->BRR=0xEA5; //9600    (36000000-4800)/9600
+                //USART2->BRR=0xEA5; //9600    (36000000-4800)/9600
                 //USART2->BRR=0x1D4C; //9600    (72000-4800)/9600
-	            //USART2->BRR=0x16C; //115200         
+	            USART2->BRR=0x138; //115200         
                 USART2->CR1|=USART_CR1_UE; //USART EN       
                 //NVIC_EnableIRQ(USART2_IRQn);
             }

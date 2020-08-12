@@ -202,10 +202,6 @@ void USB_DEVICE::SetAdr(uint16_t value)
 	// необходимо выставить подтверждение принятия пакета выставления адреса 
 	// IN status packet  (sendInZeroPacket)
 }
-void USB_DEVICE::Set_CurrentConfiguration(uint16_t value)
-{
-    CurrentConfiguration=value;
-}
 //-----------------------------------------------------------------------------------------
 void USB_DEVICE::WriteINEP(uint8_t EPnum,uint8_t* buf,uint16_t minLen)
 {
@@ -250,7 +246,7 @@ void USB_DEVICE::ReadSetupFIFO(void)
 }
 void USB_DEVICE::ep_1_2_init()
 {  
-  /*!<EP1_IN, EP1_OUT - BULK, EP2_IN - INTERRUPT>*/
+  /*!<EP1_IN, EP3_OUT - BULK, EP2_IN - INTERRUPT>*/
   USB_OTG_IN(1)->DIEPCTL|=64;// 64 байта в пакете
   USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_1;
   USB_OTG_IN(1)->DIEPCTL&=~USB_OTG_DIEPCTL_EPTYP_0; //1:0 - BULK
@@ -258,11 +254,11 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
   USB_OTG_IN(1)->DIEPCTL|=USB_OTG_DIEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
   
-  USB_OTG_OUT(1)->DOEPCTL|=64;// 64 байта в пакете
-  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_EPTYP_1;
-  USB_OTG_OUT(1)->DOEPCTL&=~USB_OTG_DOEPCTL_EPTYP_0; //1:0 - BULK 
+  USB_OTG_OUT(3)->DOEPCTL|=64;// 64 байта в пакете
+  USB_OTG_OUT(3)->DOEPCTL|=USB_OTG_DOEPCTL_EPTYP_1;
+  USB_OTG_OUT(3)->DOEPCTL&=~USB_OTG_DOEPCTL_EPTYP_0; //1:0 - BULK 
   //USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
-  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
+  USB_OTG_OUT(3)->DOEPCTL|=USB_OTG_DOEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
   //------------------------------------------------------------------
   USB_OTG_IN(2)->DIEPCTL|=64;// 64 байта в пакете
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_1;
@@ -273,16 +269,16 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
 	  
   //!Демаскировать прерывание для каждой активной конечной точки, и замаскировать прерывания для всех не активных конечных точек в регистре OTG_FS_DAINTMSK.
-  USB_OTG_DEVICE->DAINTMSK|=(3<<1)|(1<<17); //включаем прерывания на конечных точках 1-IN 2-IN 1-OUT 
+  USB_OTG_DEVICE->DAINTMSK|=(1<<19)|(3<<1);//включаем прерывания на конечных точках 1-IN 2-IN 3-OUT 
   
   /*!<задаем максимальный размер пакета 
 	  и количество пакетов конечной точки BULK_OUT
 	  (непонятно как может быть больше одного пакета), 
 	  которое может принять Rx_FIFO>*/
-  USB_OTG_OUT(1)->DOEPTSIZ = 0;
-  USB_OTG_OUT(1)->DOEPTSIZ |= (1<<19)|(64<<0) ; //PKNT = 1 (DATA), макс размер пакета 64 байта	  
+  USB_OTG_OUT(3)->DOEPTSIZ = 0;
+  USB_OTG_OUT(3)->DOEPTSIZ |= (1<<19)|(64<<0) ; //PKNT = 1 (DATA), макс размер пакета 64 байта	  
   // разрешаем прием пакета OUT на BULK точку 
-  USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_CNAK|USB_OTG_DOEPCTL_EPENA; //разрешаем конечную точку OUT
+  USB_OTG_OUT(3)->DOEPCTL|=USB_OTG_DOEPCTL_CNAK|USB_OTG_DOEPCTL_EPENA; //разрешаем конечную точку OUT
 //-------------------------------------------------------
 /*< Заполняем массив line_code>*/	
 	for(uint8_t i=0;i<7;i++){line_code[i] = line_coding[i];}
@@ -332,18 +328,26 @@ void USB_DEVICE::read_BULK_FIFO(uint8_t size)
 /*!<Засовываем в очередь>*/		
 	for (uint8_t i=0;i<size_on_for;i++)
 	{
-		buf[i]=USB_OTG_DFIFO(1); //вычитываем из Rx_FIFO
-		if(i != size_on_for - 1) //запихиваем по 4 байта
-		{
-			for(uint8_t j=0;j<4;j++){qBulk_OUT.push(*((uint8_t*)(buf+i)+j));}
-		}
-		/*запихиваем оставшуюся часть*/
-		else
-		{
-			for(uint8_t j=0;j<ostatok;j++)
-			{
-				qBulk_OUT.push(*((uint8_t*)(buf+i)+j));
-			}
-		}		
+		buf[i]=USB_OTG_DFIFO(0); //вычитываем из Rx_FIFO
+    //counter=buf[0];
+    for(uint8_t i=0;i<size;i++)
+    {
+      BULK_OUT_buf[i]=*((uint8_t*)(buf)+i);
+      qBulk_OUT.push(BULK_OUT_buf[i]);
+    }
+		//if(i != size_on_for - 1) //запихиваем по 4 байта
+		//{
+    //  for(uint8_t j=0;j<4;j++){BULK_OUT_buf[4*i+j] = *((uint8_t*)(buf+i)+j);}
+		//	//for(uint8_t j=0;j<4;j++){qBulk_OUT.push(*((uint8_t*)(buf+i)+j));}
+		//}
+		///*запихиваем оставшуюся часть*/
+		//else
+		//{
+		//	for(uint8_t j=0;j<ostatok;j++)
+		//	{
+    //    {BULK_OUT_buf[4*i+j] = *((uint8_t*)(buf+i)+j);}
+		//		//qBulk_OUT.push(*((uint8_t*)(buf+i)+j));
+		//	}
+		//}		
 	}	
 }

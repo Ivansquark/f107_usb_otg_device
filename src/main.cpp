@@ -44,11 +44,11 @@ int main()
 		font16.intToChar(count);
 		font16.print(10,10,0x00ff,font16.arr,2);
 		//
-		//font16.intToChar(usb.counter);
-		//font16.print(100,10,0x00ff,font16.arr,2);
+		font16.intToChar(usb.resetFlag);
+		font16.print(100,10,0x00ff,font16.arr,2);
 		//
-		//font16.intToChar(usb.ADDRESS);
-		//font16.print(100,80,0x00ff,font16.arr,2);
+		font16.intToChar(usb.counter);
+		font16.print(100,80,0x00ff,font16.arr,2);
 		//
 		//
 		//font16.intToChar(usb.bmRequestType);

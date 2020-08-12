@@ -133,7 +133,7 @@ constexpr uint8_t Device_Descriptor[18] =
 			{
 				0x07,   /*Endpoint descriptor length = 7 */
 				0x05,   /*Endpoint descriptor type */
-				0x01,   /*Endpoint address (0-OUT 1-endpoint1) */
+				0x03,   /*Endpoint address (0-OUT 3-endpoint3) */
 				0x02,   /*Interrupt endpoint type Interrupt 0x02 -BULK*/
 				64,
 				0x00,

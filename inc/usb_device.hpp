@@ -17,6 +17,7 @@ public:
     USB_DEVICE();    
     static USB_DEVICE* pThis;
 	QueByte qBulk_OUT;
+	uint8_t BULK_OUT_buf[64]{0};
 
 	void ReadSetupFIFO(void);
     void Enumerate_Setup();
@@ -250,7 +251,8 @@ extern "C" void OTG_FS_IRQHandler(void)
 			if(epint & USB_OTG_DOEPINT_XFRC)
 			{
 				/*!<разгребаем принятые данные в BULK точку>*/
-				USART_debug::usart2_sendSTR("BULK_OUT XFRC \n");
+				USART_debug::usart2_sendSTR("BULK_OUT_XFRC \n");
+				//USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_CNAK|USB_OTG_DOEPCTL_EPENA;
 			}
 						
 			//----------------------------------------------------------------------
@@ -260,6 +262,20 @@ extern "C" void OTG_FS_IRQHandler(void)
 		//{ //EP2 OEPINT
 		//    USB_OTG_OUT(2)->DOEPINT = epint;
 		//}
+		if( epnums & 0x00080000)		// конечная точка 3 
+		{ //EP3 OEPINT
+		    epint = USB_OTG_OUT(3)->DOEPINT;  //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
+		    epint &= USB_OTG_DEVICE->DOEPMSK; // считываем разрешенные биты 
+			/*!<Когда приложение прочитало все данные, ядро генерирует прерывание XFRC>*/ 
+			if(epint & USB_OTG_DOEPINT_XFRC)
+			{
+				/*!<разгребаем принятые данные в BULK точку>*/
+				USART_debug::usart2_sendSTR("BULK_3_OUT_XFRC \n");
+				//USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_CNAK|USB_OTG_DOEPCTL_EPENA;
+			}						
+			//----------------------------------------------------------------------
+		    USB_OTG_OUT(3)->DOEPINT = epint; //сбрасываем регистр статуса прерываний записью единицы rc_w1 (read/clear_write_1)
+		}
 		USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_OEPINT; //IN EndPoints INTerrupt mask. Разрешаем прерывание конечных точек IN
     return;
     }
@@ -288,17 +304,26 @@ extern "C" void OTG_FS_IRQHandler(void)
 					if(USB_DEVICE::pThis->setLineCodingFlag)
 					{/*!<Пришел control пакет для записи в конечную точку OUT>*/
 						//USART_debug::usart2_sendSTR("OUT completed\n");
-						uint8_t size = USB_OTG_OUT(0)->DOEPTSIZ & 0xFF;
-						USB_DEVICE::pThis->cdc_set_line_coding(size);USB_DEVICE::pThis->setLineCodingFlag=false;
+						//uint8_t size = 64 - (USB_OTG_OUT(0)->DOEPTSIZ & 0xFF);
+						USB_DEVICE::pThis->cdc_set_line_coding(bytesSize);
+						USB_DEVICE::pThis->setLineCodingFlag=false;
 						// Нужно отправить пакет нулевой длины в пакете подтверждения статуса. (по прерыванию XFRC)  	
 					} //читаем пакет setLineCoding (из 8 байт)
 					else 
 					{//!другие пакеты (BULK) принимается всегда один DATA пакет после OUT пакета					  
-						if (epNum == 1)
+						if (epNum == 3)
 						{/*!< считываем Rx_FIFO в очередь>*/
 							/*!<необходимо записать принятые байты в память (в буфер очереди)>*/
-							//uint8_t size = 64 - USB_OTG_OUT(1)->DOEPTSIZ & 0xFF;
-							USB_DEVICE::pThis->read_BULK_FIFO(bytesSize); //вычитываем из FIFO количество байт size
+							//uint8_t size = 64 - (USB_OTG_OUT(1)->DOEPTSIZ & 0xFF);
+							USB_DEVICE::pThis->resetFlag=bytesSize;
+							USART_debug::usart2_send(bytesSize);
+							//USB_DEVICE::pThis->resetFlag=size;
+							if(bytesSize)
+							{								
+								USB_DEVICE::pThis->read_BULK_FIFO(bytesSize); //вычитываем из FIFO количество байт size
+								USART_debug::usart2_sendSTR("read_BULK_FIFO\n");
+							}
+							uint32_t dummy = USB_OTG_DFIFO(0);
 						}
 					}											
 				}
@@ -311,40 +336,31 @@ extern "C" void OTG_FS_IRQHandler(void)
 						USB_DEVICE::pThis->ReadSetupFIFO();	
 						uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его. 					
 					}				
-				} break;
-				//case 0x03: 
-				//	//USART_debug::usart2_sendSTR("OUT completed\n"); /* OUT completed */		
-				//	//USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);	
-				//break;
-				//case 0x04:  /* SETUP completed завершена транзакция SETUP (срабатывает прерывание). выставляется ACK*/
-				//{
-				//	//USART_debug::usart2_sendSTR("SETUP Completed\n");
-				//	//EPENA Приложение устанавливает этот бит, чтобы запустить передачу на конечной точке 0.
-				//	//CNAK (бит 26): Clear NAK. Запись в этот бит очистит бит NAK для конечной точки. Ядро установить этот бит после того, как на конечной точке принят пакет SETUP
-				//	USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_OEPINT;
-				//	USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);				
-				//	//USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA);
-				//	// после этого необходимо заполнить Tx дескриптором устройства.
-				//}	break;		
+				} break;				
 			}
 		}
 		else
 		{
 			switch (status) 
-			case 0x03: 
-			/*<После того, как эта запись была извлечена из RxFIFO, ядро выставляет прерывание XFRC на указанной конечной точке OUT>*/
-					//USART_debug::usart2_sendSTR("OUT completed\n"); /* OUT completed */		
-					//USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);	
-			break;
-			case 0x04:  /* SETUP completed завершена транзакция SETUP (срабатывает прерывание). выставляется ACK*/
-				{
-					//USART_debug::usart2_sendSTR("SETUP Completed\n");
-					USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_OEPINT;
-					USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);//запускаем конечную точку и разрешаем ее				
-					//USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA);
-					// после этого необходимо заполнить Tx дескриптором устройства.
-				}
-			break;
+			{
+				case 0x03: 
+				/*<После того, как эта запись была извлечена из RxFIFO, ядро выставляет прерывание XFRC на указанной конечной точке OUT>*/
+						//USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_OEPINT;
+						if(epNum==3)
+						{
+							USB_OTG_OUT(3)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
+						}						
+				break;
+				case 0x04:  /* SETUP completed завершена транзакция SETUP (срабатывает прерывание). выставляется ACK*/
+					{
+						//USART_debug::usart2_sendSTR("SETUP Completed\n");
+						USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_OEPINT;
+						USB_OTG_OUT(0)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);//запускаем конечную точку и разрешаем ее				
+						//USB_OTG_IN(0)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA);
+						// после этого необходимо заполнить Tx дескриптором устройства.
+					}
+				break;
+			}			
 		}		
 		USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_RXFLVLM; //разрешаем генерацию прерывания наличия принятых данных в FIFO приема.		
 	}
