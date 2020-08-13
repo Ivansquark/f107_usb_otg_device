@@ -7,7 +7,7 @@ void *__dso_handle = nullptr; // dummy "guard" that is used to identify dynamic 
 
 int main()
 {		
-	
+	int* x =new int();
     RCCini rcc;	//! 72 MHz
 	Timers tim4_1sec(4);
 	//LED13 led;

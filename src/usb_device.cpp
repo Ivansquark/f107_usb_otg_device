@@ -2,7 +2,7 @@
 #include "usb_descriptors.hpp"
 
 USB_DEVICE::USB_DEVICE()
-{pThis=this;fifo_init(); usb_init();}
+{pThis=this; usb_init();} //fifo_init();
 
 void USB_DEVICE::usb_init()
     {
@@ -19,11 +19,11 @@ void USB_DEVICE::usb_init()
         // core        
         USB_OTG_FS->GAHBCFG|=USB_OTG_GAHBCFG_GINT; // globalk interrupt mask 1: отмена маскирования прерываний для приложения.
         USB_OTG_FS->GAHBCFG|=USB_OTG_GAHBCFG_TXFELVL; //1: прерывание бита TXFE (находится в регистре OTG_FS_DIEPINTx) показывает, что IN Endpoint TxFIFO полностью пуст.
-        USB_OTG_FS->GAHBCFG|=USB_OTG_GAHBCFG_PTXFELVL; //1: прерывание бита NPTXFE (находится в регистре OTG_FS_GINTSTS) показывает, что непериодический TxFIFO полностью пуст.
+        USB_OTG_FS->GAHBCFG|=USB_OTG_GAHBCFG_PTXFELVL; //1: прерывание когда, непериодический TxFIFO полностью пуст.
         //USB_OTG_FS->GUSBCFG|=USB_OTG_GUSBCFG_SRPCAP; // SRP Бит разрешения управления питанием порта USB (SRP capable bit).
         // FS timeout calibration Приложение должно запрограммировать это поле на основе скорости энумерации.
-        USB_OTG_FS->GUSBCFG|=USB_OTG_GUSBCFG_TOCAL_2|USB_OTG_GUSBCFG_TOCAL_0;
-        USB_OTG_FS->GUSBCFG &=~ USB_OTG_GUSBCFG_TOCAL_1; //1:0:1
+        USB_OTG_FS->GUSBCFG|=USB_OTG_GUSBCFG_TOCAL_2;
+        USB_OTG_FS->GUSBCFG &=~ USB_OTG_GUSBCFG_TOCAL_1|USB_OTG_GUSBCFG_TOCAL_0; //1:0:0 - 4 /0.25 = 16 интервалов бит
         // USB turnaround time Диапазон частот AHB	TRDT 32	-	0x6
         USB_OTG_FS->GUSBCFG |= (USB_OTG_GUSBCFG_TRDT_2|USB_OTG_GUSBCFG_TRDT_1);
         USB_OTG_FS->GUSBCFG &=~ (USB_OTG_GUSBCFG_TRDT_3|USB_OTG_GUSBCFG_TRDT_0); //0:1:1:0 = 6
@@ -56,7 +56,8 @@ void USB_DEVICE::fifo_init()
 	  //! IN endpoint transmit fifo size register
 	  USB_OTG_FS->DIEPTXF[0] = (TX_EP1_FIFO_SIZE<<16) | (RX_FIFO_SIZE+TX_EP0_FIFO_SIZE);  //!размер и адрес Tx_FIFO  для EP1
 	  USB_OTG_FS->DIEPTXF[1] = (TX_EP2_FIFO_SIZE<<16) | (RX_FIFO_SIZE+TX_EP0_FIFO_SIZE+TX_EP1_FIFO_SIZE); //!размер и адрес Tx_FIFO  для EP2
-	  USB_OTG_FS->DIEPTXF[2] = (TX_EP3_FIFO_SIZE<<16) | (RX_FIFO_SIZE+TX_EP0_FIFO_SIZE+TX_EP1_FIFO_SIZE+TX_EP2_FIFO_SIZE); //! размер и адрес Tx_FIFO  для EP3
+	  //USB_OTG_FS->DIEPTXF[2] = (TX_EP3_FIFO_SIZE<<16) | (RX_FIFO_SIZE+TX_EP0_FIFO_SIZE+TX_EP1_FIFO_SIZE+TX_EP2_FIFO_SIZE); //! размер и адрес Tx_FIFO  для EP3
+	  USB_OTG_FS->DIEPTXF[2] = 0;
 	  // 1 пакета SETUP, CNT=1, endpoint 0 OUT transfer size register
 	  USB_OTG_OUT(0)->DOEPTSIZ = (USB_OTG_DOEPTSIZ_STUPCNT_0 | USB_OTG_DOEPTSIZ_PKTCNT) ; //STUPCNT 0:1 = 1
 	  // XFRSIZE = 64 - размер транзакции в байтах
@@ -257,13 +258,13 @@ void USB_DEVICE::ep_1_2_init()
   USB_OTG_OUT(3)->DOEPCTL|=64;// 64 байта в пакете
   USB_OTG_OUT(3)->DOEPCTL|=USB_OTG_DOEPCTL_EPTYP_1;
   USB_OTG_OUT(3)->DOEPCTL&=~USB_OTG_DOEPCTL_EPTYP_0; //1:0 - BULK 
-  //USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
+  USB_OTG_OUT(3)->DOEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
   USB_OTG_OUT(3)->DOEPCTL|=USB_OTG_DOEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
   //------------------------------------------------------------------
   USB_OTG_IN(2)->DIEPCTL|=64;// 64 байта в пакете
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_1;
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_EPTYP_0; //1:1 - INTERRUPT
-  USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_1;
+  USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_TXFNUM_1;
   USB_OTG_IN(2)->DIEPCTL&=~USB_OTG_DIEPCTL_TXFNUM_0;//Tx_FIFO_2 0:0:1:0
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_SD0PID_SEVNFRM; //data0
   USB_OTG_IN(2)->DIEPCTL|=USB_OTG_DIEPCTL_USBAEP; //включаем конечную точку (выключается по ресету) 
@@ -276,7 +277,8 @@ void USB_DEVICE::ep_1_2_init()
 	  (непонятно как может быть больше одного пакета), 
 	  которое может принять Rx_FIFO>*/
   USB_OTG_OUT(3)->DOEPTSIZ = 0;
-  USB_OTG_OUT(3)->DOEPTSIZ |= (1<<19)|(64<<0) ; //PKNT = 1 (DATA), макс размер пакета 64 байта	  
+  USB_OTG_OUT(3)->DOEPTSIZ |= (1<<19)|(64<<0) ; //PKNT = 1 (DATA), макс размер пакета 64 байта	
+  //USB_OTG_OUT(3)->DOEPTSIZ |= (1<<19)|(1<<0) ; //PKNT = 1 (DATA), 1 ,байт - прерывание по приему одного байта	
   // разрешаем прием пакета OUT на BULK точку 
   USB_OTG_OUT(3)->DOEPCTL|=USB_OTG_DOEPCTL_CNAK|USB_OTG_DOEPCTL_EPENA; //разрешаем конечную точку OUT
 //-------------------------------------------------------
@@ -329,12 +331,8 @@ void USB_DEVICE::read_BULK_FIFO(uint8_t size)
 	for (uint8_t i=0;i<size_on_for;i++)
 	{
 		buf[i]=USB_OTG_DFIFO(0); //вычитываем из Rx_FIFO
-    //counter=buf[0];
-    for(uint8_t i=0;i<size;i++)
-    {
-      BULK_OUT_buf[i]=*((uint8_t*)(buf)+i);
-      qBulk_OUT.push(BULK_OUT_buf[i]);
-    }
+		//counter=buf[0];
+		
 		//if(i != size_on_for - 1) //запихиваем по 4 байта
 		//{
     //  for(uint8_t j=0;j<4;j++){BULK_OUT_buf[4*i+j] = *((uint8_t*)(buf+i)+j);}
@@ -350,4 +348,9 @@ void USB_DEVICE::read_BULK_FIFO(uint8_t size)
 		//	}
 		//}		
 	}	
+	for(uint8_t j=0;j<size;j++)
+	{
+		BULK_OUT_buf[j]=*((uint8_t*)(buf)+j); //записываем в буфер
+		qBulk_OUT.push(BULK_OUT_buf[j]);
+	}
 }

@@ -222,7 +222,7 @@ constexpr uint8_t Device_Descriptor[18] =
     static constexpr uint16_t USBD_strManufacturer = 0x0301;
     static constexpr uint16_t USBD_strProduct = 0x0302;
     static constexpr uint16_t USBD_IDX_SERIAL_STR = 0x0303;
-    static constexpr uint16_t USBD_IDX_CONFIG_STR = 0x0304;
+    //static constexpr uint16_t USBD_IDX_CONFIG_STR = 0x0304;
 	
 	//<(bRequest<<8)|(bmRequestType)>
 	static constexpr uint16_t SEND_ENCAPSULATED_COMMAND = 0x2100; //посылка команды

@@ -58,7 +58,7 @@ usb_device.o: src/usb_device.cpp
 #	$(CC) freeRTOS/src/timers.c -o timers.o -I$(FRH) -I$(INC) $(CFLAGS)	
 #heap_2.o: freeRTOS/src/heap_2.c $(INC)
 #	$(CC) freeRTOS/src/heap_2.c -o heap_2.o -I$(FRH) -I$(INC) $(CFLAGS)		
-main.o: $(TARGET) $(INC) $(FRH)
+main.o: $(TARGET) #$(INC) $(FRH)
 	$(CC) $(TARGET) -o main.o -I$(INC) -I$(LIB) -I$(FRH) $(CPPFLAGS)
 	
 clean:
