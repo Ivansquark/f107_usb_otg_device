@@ -90,7 +90,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 	{
 		//USART_debug::usart2_send(USB_DEVICE::pThis->resetFlag++);		
 		USART_debug::usart2_sendSTR("reset\n");	
-		USB_OTG_FS->GINTSTS |= USB_OTG_GINTSTS_USBRST; // сбрасываем бит
+		
 		//1. Установка бита NAK для всех конечных точек OUT: SNAK = 1 в регистре OTG_FS_DOEPCTLx (для всех конечных точек OUT, x это номер конечной точки).
 		//Используя этот бит, приложение может управлять передачей отрицательных подтверждений NAK конечной точки.
 		USB_OTG_OUT(0)->DOEPCTL |= USB_OTG_DOEPCTL_SNAK;
@@ -126,7 +126,8 @@ extern "C" void OTG_FS_IRQHandler(void)
 		//USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_USBRST;	
 		/*!<Обнууляем адрес>*/
 		uint8_t value=0x7F; //7 bits of address
-		USB_OTG_DEVICE->DCFG &=~ value<<4; //запись адреса 0.		
+		USB_OTG_DEVICE->DCFG &=~ value<<4; //запись адреса 0.
+		USB_OTG_FS->GINTSTS |= USB_OTG_GINTSTS_USBRST; // сбрасываем бит		
 	}
      /*! <start of Enumeration done> */
 	if(USB_OTG_FS->GINTSTS & USB_OTG_GINTSTS_ENUMDNE)
@@ -241,26 +242,26 @@ extern "C" void OTG_FS_IRQHandler(void)
 		    {}
 		    USB_OTG_OUT(0)->DOEPINT = epint; //сбрасываем регистр статуса прерываний записью единицы rc_w1 (read/clear_write_1)
 		}
-		//if( epnums & 0x00020000)		// конечная точка 1 BULK_OUT
-		//{ //EP1 OEPINT
-		//	//USART_debug::usart2_sendSTR("BULK_OUT\n");	
-		//	epint = USB_OTG_OUT(1)->DOEPINT;  //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
-		//    epint &= USB_OTG_DEVICE->DOEPMSK; // считываем разрешенные биты 
-		//	/*!<Когда приложение прочитало все данные, ядро генерирует прерывание XFRC>*/ 
-		//	if(epint & USB_OTG_DOEPINT_XFRC)
-		//	{
-		//		/*!<разгребаем принятые данные в BULK точку>*/
-		//		USART_debug::usart2_sendSTR("BULK_1_OUT_XFRC \n");
-		//		//USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_CNAK|USB_OTG_DOEPCTL_EPENA;
-		//	}
-		//				
-		//	//----------------------------------------------------------------------
-		//    USB_OTG_OUT(1)->DOEPINT = epint; //сбрасываем регистр статуса прерываний записью единицы rc_w1 (read/clear_write_1)
-		//}
-		//if( epnums & 0x00040000)		// конечная точка 2 нету
-		//{ //EP2 OEPINT
-		//    USB_OTG_OUT(2)->DOEPINT = epint;
-		//}
+		if( epnums & 0x00020000)		// конечная точка 1 BULK_OUT
+		{ //EP1 OEPINT
+			//USART_debug::usart2_sendSTR("BULK_OUT\n");	
+			epint = USB_OTG_OUT(1)->DOEPINT;  //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
+		    epint &= USB_OTG_DEVICE->DOEPMSK; // считываем разрешенные биты 
+			/*!<Когда приложение прочитало все данные, ядро генерирует прерывание XFRC>*/ 
+			if(epint & USB_OTG_DOEPINT_XFRC)
+			{
+				/*!<разгребаем принятые данные в BULK точку>*/
+				USART_debug::usart2_sendSTR("BULK_1_OUT_XFRC \n");
+				//USB_OTG_OUT(1)->DOEPCTL|=USB_OTG_DOEPCTL_CNAK|USB_OTG_DOEPCTL_EPENA;
+			}
+						
+			//----------------------------------------------------------------------
+		    USB_OTG_OUT(1)->DOEPINT = epint; //сбрасываем регистр статуса прерываний записью единицы rc_w1 (read/clear_write_1)
+		}
+		if( epnums & 0x00040000)		// конечная точка 2 нету
+		{ //EP2 OEPINT
+		    USB_OTG_OUT(2)->DOEPINT = epint;
+		}
 		if( epnums & 0x00080000)		// конечная точка 3 
 		{ //EP3 OEPINT
 		    epint = USB_OTG_OUT(3)->DOEPINT;  //Этот регистр показывает статус конечной точки по отношению к событиям USB и AHB.
@@ -298,8 +299,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 				case 2: 
 				//USART_debug::usart2_sendSTR("OUT packet\n");
 				{
-					//USART_debug::usart2_sendSTR("OUT packet\n");
-					
+					//USART_debug::usart2_sendSTR("OUT packet\n");					
 					if(USB_DEVICE::pThis->setLineCodingFlag)
 					{/*!<Пришел control пакет для записи в конечную точку OUT>*/
 						//USART_debug::usart2_sendSTR("OUT completed\n");
@@ -313,16 +313,16 @@ extern "C" void OTG_FS_IRQHandler(void)
 						if (epNum == 3)
 						{/*!< считываем Rx_FIFO в очередь>*/
 							/*!<необходимо записать принятые байты в память (в буфер очереди)>*/
-							//uint8_t size = 64 - (USB_OTG_OUT(1)->DOEPTSIZ & 0xFF);
-							USB_DEVICE::pThis->resetFlag=bytesSize;
-							USART_debug::usart2_send(bytesSize);
+							uint8_t size = 64 - (USB_OTG_OUT(3)->DOEPTSIZ & 0xFF);
+							USB_DEVICE::pThis->resetFlag=size;
+							USART_debug::usart2_send(size);
 							//USB_DEVICE::pThis->resetFlag=size;
-							if(bytesSize)
+							if(size)
 							{								
-								USB_DEVICE::pThis->read_BULK_FIFO(bytesSize); //вычитываем из FIFO количество байт size
-								USART_debug::usart2_sendSTR("read_BULK_FIFO\n");
+								USB_DEVICE::pThis->read_BULK_FIFO(size); //вычитываем из FIFO количество байт size
+								//USART_debug::usart2_sendSTR("read_BULK_FIFO\n");
 							}
-							uint32_t dummy = USB_OTG_DFIFO(0);
+							//uint32_t dummy = USB_OTG_DFIFO(0);
 						}
 					}											
 				}
@@ -333,7 +333,7 @@ extern "C" void OTG_FS_IRQHandler(void)
 					{	
 						//USART_debug::usart2_sendSTR("readFIFO\n");						
 						USB_DEVICE::pThis->ReadSetupFIFO();	
-						uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его. 					
+						//uint32_t setupStatus = USB_OTG_DFIFO(0); // считываем Setup stage done и отбрасываем его. 					
 					}				
 				} break;				
 			}
@@ -347,9 +347,10 @@ extern "C" void OTG_FS_IRQHandler(void)
 						//USB_OTG_FS-> GINTMSK |= USB_OTG_GINTMSK_OEPINT;
 						if(epNum==3)
 						{
-							USART_debug::usart2_sendSTR("BULK_OUT_COMPL \n");
-							//USB_OTG_OUT(3)->DOEPTSIZ = 0;
-							//USB_OTG_OUT(3)->DOEPTSIZ |= (1<<19)|(64<<0) ; //PKNT = 1 (DATA), макс размер пакета 64 байта
+							
+							//USART_debug::usart2_sendSTR("BULK_OUT_COMPL \n");
+							USB_OTG_OUT(3)->DOEPTSIZ = 0;
+							USB_OTG_OUT(3)->DOEPTSIZ |= (1<<19)|(64<<0) ; //PKNT = 1 (DATA), макс размер пакета 64 байта
 							USB_OTG_OUT(3)->DOEPCTL |= (USB_OTG_DOEPCTL_CNAK | USB_OTG_DOEPCTL_EPENA);
 						}						
 				break;

@@ -16,7 +16,7 @@
 //#include "frwrapper.h"
 //#include "frclasses.h"
 //#include "adc.h"
-//#include "button.h"
+#include "button.h"
 
 //***************************************************
 

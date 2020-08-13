@@ -115,7 +115,7 @@ constexpr uint8_t Device_Descriptor[18] =
             0x00, /* bAlternateSetting: Alternate setting */
             0x02, /* bNumEndpoints: Two endpoints used */
             0x0A, /* bInterfaceClass: DATA Interface Class */
-            0x00, /* bInterfaceSubClass: No class */
+            0x02, /* bInterfaceSubClass: No class */
             0x00, /* bInterfaceProtocol: No special */
             0x00 /* iInterface: */
         },
@@ -127,7 +127,7 @@ constexpr uint8_t Device_Descriptor[18] =
 				0x02, /* bmAttributes: BULK */
 				64, /* wMaxPacketSize LO: */
 				0x00, /* wMaxPacketSize HI: */
-				0x00 /* bInterval: */
+				0x01 /* bInterval: */
 			},
 			/*EP1_OUT_Descriptor[7]*/
 			{
@@ -137,7 +137,7 @@ constexpr uint8_t Device_Descriptor[18] =
 				0x02,   /*Interrupt endpoint type Interrupt 0x02 -BULK*/
 				64,
 				0x00,
-				0x00     /*Polling interval in milliseconds*/
+				0x01     /*Polling interval in milliseconds*/
 			}
     };		
 //---------------------------------------------------------------------------------------------------	
