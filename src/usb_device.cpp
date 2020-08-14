@@ -155,6 +155,14 @@ void USB_DEVICE::Enumerate_Setup(void)
     USART_debug::usart2_sendSTR("GET_ENCAPSULATED_RESPONSE\n");
       cdc_get_encapsulated_command();  
       break;
+	case CLEAR_FEATURE_ENDP:
+			USART_debug::usart2_sendSTR(" CLEAR_FEATURE_ENDP \n");
+			USART_debug::usart2_send(setupPack.b[2]);
+		  USART_debug::usart2_send(setupPack.b[3]);
+		//Сбросить все TXFIFO
+		USB_OTG_FS->GRSTCTL = USB_OTG_GRSTCTL_TXFFLSH | USB_OTG_GRSTCTL_TXFNUM;
+		while (USB_OTG_FS->GRSTCTL & USB_OTG_GRSTCTL_TXFFLSH); //очищаем Tx_FIFO, которое почему то переполняется
+		break;
 	
 	default: stall();USART_debug::usart2_sendSTR(" STALL \n");break;
   }   
