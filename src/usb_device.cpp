@@ -164,7 +164,9 @@ void USB_DEVICE::Enumerate_Setup(void)
 		while (USB_OTG_FS->GRSTCTL & USB_OTG_GRSTCTL_TXFFLSH); //очищаем Tx_FIFO, которое почему то переполняется
 		break;
 	
-	default: stall();USART_debug::usart2_sendSTR(" STALL \n");break;
+	default: 
+  //stall();
+  USART_debug::usart2_sendSTR(" STALL \n");break;
   }   
   WriteINEP(0x00,pbuf,MIN(len, setupPack.setup.wLength));   // записываем в конечную точку адрес дескриптора и его размер (а также запрошенный размер)
 }
@@ -207,7 +209,7 @@ void USB_DEVICE::WriteFIFO(uint8_t fifo_num, uint8_t *src, uint16_t len)
         /*!<закидываем в fifo 32-битные слова>*/
         USB_OTG_DFIFO(fifo_num) = *((__packed uint32_t *)src);                
     }
-    //USART_debug::usart2_sendSTR("WRITE in EP0\n");    
+    USART_debug::usart2_sendSTR("WRITE in EP0\n");    
 }
 
 void USB_DEVICE::ReadSetupFIFO(void)

@@ -28,7 +28,7 @@ private:
                 /*! ** \brief TIMER_1 - time counting to 100 milisecond  for antirattle **************/
                 RCC->APB2ENR|=RCC_APB2ENR_TIM1EN; //тактирование на таймер  ("НА ТАЙМЕР ЧАСТОТА ПРИХОДИТ БОЛЬШАЯ В ДВА РАЗА")
                 TIM1->PSC=36000; //0  //делить частоту шины apb1(64MHz*2 при SysClk -128MHz) на 64000 => частота 2kHz 
-                TIM1->ARR=200-1; //считаем до 2000 => прерывание раз в 100 мс  period                 
+                TIM1->ARR=400-1; //считаем до 400 => прерывание раз в 200 мс  period                 
                 TIM1->CR1|=TIM_CR1_ARPE;  // задействуем регистр auto reload
 	            TIM1->DIER|=TIM_DIER_UIE; //включаем прерывание по таймеру -   1: Update interrupt enabled.
                 //TIM1->CR1|=TIM_CR1_CEN; //включаем таймер

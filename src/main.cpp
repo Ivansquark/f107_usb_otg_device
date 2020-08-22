@@ -52,34 +52,13 @@ int main()
 		font16.print(10,10,0x00ff,font16.arr,2);
 		//
 		font16.intToChar(usb.resetFlag);
-		font16.print(100,10,0x00ff,font16.arr,2);
+		font16.print(150,10,0x00ff,font16.arr,2);
 		//
 		a=TIM3->CNT;
 		if(Button::Click){Button::Click=false;usb.WriteINEP(0x01,encoderCounter,1);}	
 		font16.intToChar(a);
 		font16.print(100,80,0x00ff,font16.arr,2);
-		//
-		//
-		//font16.intToChar(encoderCounter[1]);
-		//font16.print(100,140,0x00ff,font16.arr,2);
-		//
-		//font16.intToChar(usb.bRequest);
-		//font16.print(10,60,0x00ff,font16.arr,2);
-
-		//font16.intToChar(usb.wValue);
-		//font16.print(10,80,0x00ff,font16.arr,2);
-		//
-		//font16.intToChar(usb.wIndex);
-		//font16.print(10,100,0x00ff,font16.arr,2);
-		//
-		//font16.intToChar(usb.wLength);
-		//font16.print(10,120,0x00ff,font16.arr,2);
-		//
-		//font16.intToChar(count);
-		//font16.print(50,220,0x00ff,font16.arr,2);
-		//count++;
-		//usart2.usart2_send(count);
-		//usart2.usart2_sendSTR("opa");
+		
 	}
     return 0;
 }
