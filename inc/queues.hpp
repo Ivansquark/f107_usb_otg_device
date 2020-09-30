@@ -1,7 +1,7 @@
 #ifndef QUEUES_HPP
 #define QUEUES_HPP
 
-/*! <Simple Static Queue With Const Max Size Must Be Checked On Empty Condition>*/
+/*! <Simple Static Queue With Const Max Size Must Be Checked On Empty Condition (not optimized) >*/
 struct QueWord
 {
 	QueWord()

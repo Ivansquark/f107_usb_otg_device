@@ -36,14 +36,16 @@ main.bin: main.elf
 	$(OBJC) main.elf main.bin -O binary
 main.lst: main.elf
 	$(OBJD) -D main.elf > main.lst
-main.elf: startup.o usb_device.o main.o # malloc.o tasks.o port.o queue.o list.o timers.o heap_2.o main.o
-	$(CC) -o main.elf -T$(LIB)stm32f107.ld startup.o usb_device.o main.o \
+main.elf: startup.o usb_device.o normalqueue.o main.o # malloc.o tasks.o port.o queue.o list.o timers.o heap_2.o main.o
+	$(CC) -o main.elf -T$(LIB)stm32f107.ld startup.o usb_device.o normalqueue.o main.o \
 	-I$(LIB) -I$(FRH) $(LCPPFLAGS)
 	arm-none-eabi-size main.elf
 startup.o: $(LIB)startup.cpp
 	$(CC) $(LIB)startup.cpp -o startup.o $(CPPFLAGS)
 usb_device.o: src/usb_device.cpp
 	$(CC) src/usb_device.cpp -o usb_device.o -I$(INC) -I$(LIB) $(CPPFLAGS)
+normalqueue.o: src/normalqueue.cpp
+	$(CC) src/normalqueue.cpp -o normalqueue.o -I$(INC) -I(LIB) $(CPPFLAGS)
 #malloc.o: src/malloc.cpp
 #	$(CC) src/malloc.cpp -o malloc.o -I$(INC) -I$(FRH) $(CPPFLAGS)	
 #port.o: freeRTOS/src/port.c 
