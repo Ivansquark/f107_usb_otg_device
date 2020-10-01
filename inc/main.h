@@ -3,7 +3,7 @@
 
 //#include "stm32f10x.h"
 #include "stm32f107xc.h"
-#include "queues.hpp"
+//#include "queues.hpp"
 //#include "led.h"
 #include "usart1.h"
 #include "rcc.h"
@@ -17,6 +17,7 @@
 //#include "frclasses.h"
 //#include "adc.h"
 #include "button.h"
+#include "normalqueue.hpp"
 
 //***************************************************
 

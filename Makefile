@@ -45,7 +45,7 @@ startup.o: $(LIB)startup.cpp
 usb_device.o: src/usb_device.cpp
 	$(CC) src/usb_device.cpp -o usb_device.o -I$(INC) -I$(LIB) $(CPPFLAGS)
 normalqueue.o: src/normalqueue.cpp
-	$(CC) src/normalqueue.cpp -o normalqueue.o -I$(INC) -I(LIB) $(CPPFLAGS)
+	$(CC) src/normalqueue.cpp -o normalqueue.o -I$(INC) $(CPPFLAGS)
 #malloc.o: src/malloc.cpp
 #	$(CC) src/malloc.cpp -o malloc.o -I$(INC) -I$(FRH) $(CPPFLAGS)	
 #port.o: freeRTOS/src/port.c 

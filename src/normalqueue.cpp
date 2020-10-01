@@ -1,5 +1,11 @@
 #include "normalqueue.hpp"
 
+NormalQueue8* NormalQueue8::pThis=nullptr;
+
+NormalQueue8::NormalQueue8() {
+    pThis=this;
+}
+
 /*!< return current queue size >*/
 uint16_t NormalQueue8::QueSize() {
     if(head >= tail) {

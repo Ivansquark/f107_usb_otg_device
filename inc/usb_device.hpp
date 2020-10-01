@@ -6,7 +6,7 @@
 #define RX_FIFO_SIZE         128 //размер очередей в 32 битных словах
 #define TX_EP0_FIFO_SIZE     128
 #define TX_EP1_FIFO_SIZE     128
-#define TX_EP2_FIFO_SIZE     128
+#define TX_EP2_FIFO_SIZE     0
 #define TX_EP3_FIFO_SIZE     128
 //адреса разных FIFO
 #define USB_OTG_DFIFO(i) *(__IO uint32_t *)((uint32_t)USB_OTG_FS_PERIPH_BASE + USB_OTG_FIFO_BASE + (i) * USB_OTG_FIFO_SIZE) 
@@ -16,7 +16,7 @@ class USB_DEVICE
 public: 
     USB_DEVICE();    
     static USB_DEVICE* pThis;
-	QueByte qBulk_OUT;
+	//QueByte qBulk_OUT;
 	uint8_t BULK_OUT_buf[64]{0};
 
 	void ReadSetupFIFO(void);

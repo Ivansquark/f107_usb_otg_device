@@ -22,13 +22,14 @@ int main()
 	lcd.fillScreen(0xff00);
 	Font_16x16 font16;
 	__enable_irq();
+	NormalQueue8 que;
 	USB_DEVICE usb;
 	USART_debug usart2(2);
 	
 	uint8_t arr[8]={'U','S','B','-',0x30,0x30,'\t','\n'};
 	uint8_t count;
 	__enable_irq();
-	for(uint32_t i=0;i<10000000;i++){}
+	//for(uint32_t i=0;i<10000000;i++){}
 	uint8_t i=0x30;
 	bool startINflag=false;
 	volatile uint8_t a=0;
@@ -40,12 +41,12 @@ int main()
 			i++;
 			if(i==0x39){i=0x30;}
 			arr[5]=i;
-			if(startINflag){usb.WriteINEP(0x01,arr,8);}			
+			if(startINflag){usb.WriteINEP(0x03,arr,8);}			
 			Timers::timerSecFlag=false;
 		}
-		if(usb.qBulk_OUT.is_not_empty())
+		if(!que.isEmpty())
 		{
-			count = usb.qBulk_OUT.pop(); //считываем из очереди
+			count = que.pop(); //считываем из очереди
 			if (count==255){startINflag=true;}
 		}
 		font16.intToChar(count);
@@ -55,10 +56,9 @@ int main()
 		font16.print(150,10,0x00ff,font16.arr,2);
 		//
 		a=TIM3->CNT;
-		if(Button::Click){Button::Click=false;usb.WriteINEP(0x01,encoderCounter,1);}	
+		if(Button::Click){Button::Click=false;usb.WriteINEP(0x03,encoderCounter,1);}	
 		font16.intToChar(a);
-		font16.print(100,80,0x00ff,font16.arr,2);
-		
+		font16.print(100,80,0x00ff,font16.arr,2);		
 	}
     return 0;
 }
